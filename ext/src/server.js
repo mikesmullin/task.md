@@ -126,12 +126,14 @@ function validateTextDocument(textDocument) {
           end: { line: lineIndex, character: error.endChar || line.length }
         },
         message: error.msg,
-        source: 'todo-task-linter'
+        source: 'todo-task-linter',
+        code: error.code || undefined
       };
       diagnostics.push(diagnostic);
 
       // Detailed trace for debugging
-      connection.console.log(`ERROR [${error.line}:${error.startChar || 0}-${error.endChar || line.length}]: "${error.msg}"`);
+      const codeStr = error.code ? ` [${error.code}]` : '';
+      connection.console.log(`ERROR${codeStr} [${error.line}:${error.startChar || 0}-${error.endChar || line.length}]: "${error.msg}"`);
       connection.console.log(`  Line content: "${line}"`);
       connection.console.log(`  Highlighted: "${line.substring(error.startChar || 0, error.endChar || line.length)}"`);
     }
@@ -148,12 +150,14 @@ function validateTextDocument(textDocument) {
           end: { line: lineIndex, character: warning.endChar || line.length }
         },
         message: warning.msg,
-        source: 'todo-task-linter'
+        source: 'todo-task-linter',
+        code: warning.code || undefined
       };
       diagnostics.push(diagnostic);
 
       // Detailed trace for debugging
-      connection.console.log(`WARNING [${warning.line}:${warning.startChar || 0}-${warning.endChar || line.length}]: "${warning.msg}"`);
+      const codeStr = warning.code ? ` [${warning.code}]` : '';
+      connection.console.log(`WARNING${codeStr} [${warning.line}:${warning.startChar || 0}-${warning.endChar || line.length}]: "${warning.msg}"`);
       connection.console.log(`  Line content: "${line}"`);
       connection.console.log(`  Highlighted: "${line.substring(warning.startChar || 0, warning.endChar || line.length)}"`);
     }

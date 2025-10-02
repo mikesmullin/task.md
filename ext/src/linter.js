@@ -1,6 +1,116 @@
 // linter.js
 // Validate a Markdown task file according to the Version Three language rules.
 
+/**
+ * Error codes for task.md linting
+ */
+const ERROR_CODES = {
+  // Quote-related errors
+  UNCLOSED_DOUBLE_QUOTE: 'TD001',
+  UNCLOSED_SINGLE_QUOTE: 'TD002',
+  UNCLOSED_BACKTICK_QUOTE: 'TD003',
+
+  // Prefix/token placement errors
+  MISPLACED_ASSIGNEE: 'TD010',
+  MISPLACED_TAG: 'TD011',
+  MISPLACED_PRIORITY: 'TD012',
+
+  // Content structure errors
+  UNQUOTED_TITLE_WITH_KV: 'TD020',
+  VALUES_WITHOUT_KEYS: 'TD021',
+
+  // Indentation errors
+  INVALID_INDENTATION: 'TD030',
+  BULLET_MISSING_CONTENT: 'TD031',
+  INVALID_HIERARCHY: 'TD032',
+  LARGE_INDENT_JUMP: 'TD033',
+
+  // Multi-line content errors
+  MULTILINE_WITHOUT_PIPE: 'TD040',
+  INVALID_MULTILINE_CONTENT: 'TD041',
+  MULTILINE_NO_CONTENT: 'TD042',
+
+  // Duplicate/unique constraint errors
+  DUPLICATE_ID: 'TD050',
+
+  // Value formatting warnings
+  UNQUOTED_SPACED_VALUE: 'TD100'
+};
+
+/**
+ * Error code descriptions and help URLs
+ */
+const ERROR_INFO = {
+  [ERROR_CODES.UNCLOSED_DOUBLE_QUOTE]: {
+    description: 'Double quote is not properly closed',
+    helpUrl: 'https://github.com/mikesmullin/task.md#quotes'
+  },
+  [ERROR_CODES.UNCLOSED_SINGLE_QUOTE]: {
+    description: 'Single quote is not properly closed',
+    helpUrl: 'https://github.com/mikesmullin/task.md#quotes'
+  },
+  [ERROR_CODES.UNCLOSED_BACKTICK_QUOTE]: {
+    description: 'Backtick quote is not properly closed',
+    helpUrl: 'https://github.com/mikesmullin/task.md#quotes'
+  },
+  [ERROR_CODES.MISPLACED_ASSIGNEE]: {
+    description: '@assignee tags must appear at the beginning of task prefix',
+    helpUrl: 'https://github.com/mikesmullin/task.md#assignees'
+  },
+  [ERROR_CODES.MISPLACED_TAG]: {
+    description: '#tags must appear at the beginning of task prefix',
+    helpUrl: 'https://github.com/mikesmullin/task.md#tags'
+  },
+  [ERROR_CODES.MISPLACED_PRIORITY]: {
+    description: 'Priority shorthand (A-D, x, -) must appear at the beginning of task prefix',
+    helpUrl: 'https://github.com/mikesmullin/task.md#priorities'
+  },
+  [ERROR_CODES.UNQUOTED_TITLE_WITH_KV]: {
+    description: 'Unquoted strings followed by key:value pairs need to be quoted',
+    helpUrl: 'https://github.com/mikesmullin/task.md#titles'
+  },
+  [ERROR_CODES.VALUES_WITHOUT_KEYS]: {
+    description: 'Values without keys are not allowed outside of task prefix',
+    helpUrl: 'https://github.com/mikesmullin/task.md#key-value-pairs'
+  },
+  [ERROR_CODES.INVALID_INDENTATION]: {
+    description: 'Indentation must be a multiple of the configured indent size',
+    helpUrl: 'https://github.com/mikesmullin/task.md#indentation'
+  },
+  [ERROR_CODES.BULLET_MISSING_CONTENT]: {
+    description: 'Bullet lines must have content after the dash',
+    helpUrl: 'https://github.com/mikesmullin/task.md#bullets'
+  },
+  [ERROR_CODES.INVALID_HIERARCHY]: {
+    description: 'Child tasks must have a proper parent task at the correct indentation level',
+    helpUrl: 'https://github.com/mikesmullin/task.md#hierarchy'
+  },
+  [ERROR_CODES.LARGE_INDENT_JUMP]: {
+    description: 'Indentation should increase by the configured indent size',
+    helpUrl: 'https://github.com/mikesmullin/task.md#indentation'
+  },
+  [ERROR_CODES.MULTILINE_WITHOUT_PIPE]: {
+    description: 'Multi-line content requires a pipe (|) after the key',
+    helpUrl: 'https://github.com/mikesmullin/task.md#multiline-content'
+  },
+  [ERROR_CODES.INVALID_MULTILINE_CONTENT]: {
+    description: 'Invalid multi-line content structure',
+    helpUrl: 'https://github.com/mikesmullin/task.md#multiline-content'
+  },
+  [ERROR_CODES.MULTILINE_NO_CONTENT]: {
+    description: 'Multi-line blocks with pipe (|) must have indented content',
+    helpUrl: 'https://github.com/mikesmullin/task.md#multiline-content'
+  },
+  [ERROR_CODES.DUPLICATE_ID]: {
+    description: 'Task IDs must be unique within the document',
+    helpUrl: 'https://github.com/mikesmullin/task.md#ids'
+  },
+  [ERROR_CODES.UNQUOTED_SPACED_VALUE]: {
+    description: 'Values with spaces should be quoted for clarity',
+    helpUrl: 'https://github.com/mikesmullin/task.md#quotes'
+  }
+};
+
 function lintLines(lines, opts = { indentSize: 2 }) {
   const errors = [];
   const warnings = [];
@@ -10,20 +120,22 @@ function lintLines(lines, opts = { indentSize: 2 }) {
   const stack = []; // track indent levels and last bullet indent
   let insideMultilineBlock = null; // track when we're inside a multiline block { startLine, baseIndent, endIndent }
 
-  function pushError(lineNo, msg, startChar = 0, endChar = null) {
+  function pushError(lineNo, msg, startChar = 0, endChar = null, code = null) {
     errors.push({
       line: lineNo + 1,
       msg,
       startChar,
-      endChar: endChar !== null ? endChar : (lines[lineNo] ? lines[lineNo].length : 0)
+      endChar: endChar !== null ? endChar : (lines[lineNo] ? lines[lineNo].length : 0),
+      code
     });
   }
-  function pushWarn(lineNo, msg, startChar = 0, endChar = null) {
+  function pushWarn(lineNo, msg, startChar = 0, endChar = null, code = null) {
     warnings.push({
       line: lineNo + 1,
       msg,
       startChar,
-      endChar: endChar !== null ? endChar : (lines[lineNo] ? lines[lineNo].length : 0)
+      endChar: endChar !== null ? endChar : (lines[lineNo] ? lines[lineNo].length : 0),
+      code
     });
   }
 
@@ -75,13 +187,13 @@ function lintLines(lines, opts = { indentSize: 2 }) {
     }
 
     if (inDoubleQuote) {
-      pushError(lineNo, 'Unclosed double quote', lastDoubleQuotePos, lastDoubleQuotePos + 1);
+      pushError(lineNo, 'Unclosed double quote', lastDoubleQuotePos, lastDoubleQuotePos + 1, ERROR_CODES.UNCLOSED_DOUBLE_QUOTE);
     }
     if (inSingleQuote) {
-      pushError(lineNo, 'Unclosed single quote', lastSingleQuotePos, lastSingleQuotePos + 1);
+      pushError(lineNo, 'Unclosed single quote', lastSingleQuotePos, lastSingleQuotePos + 1, ERROR_CODES.UNCLOSED_SINGLE_QUOTE);
     }
     if (inBacktick) {
-      pushError(lineNo, 'Unclosed backtick quote', lastBacktickPos, lastBacktickPos + 1);
+      pushError(lineNo, 'Unclosed backtick quote', lastBacktickPos, lastBacktickPos + 1, ERROR_CODES.UNCLOSED_BACKTICK_QUOTE);
     }
   }
 
@@ -177,9 +289,9 @@ function lintLines(lines, opts = { indentSize: 2 }) {
 
       // Check for misplaced prefix tokens
       if (token.text.startsWith('@')) {
-        pushError(lineNo, '@assignee tags are only allowed at beginning task prefix', token.start, token.end);
+        pushError(lineNo, '@assignee tags are only allowed at beginning task prefix', token.start, token.end, ERROR_CODES.MISPLACED_ASSIGNEE);
       } else if (token.text.startsWith('#')) {
-        pushError(lineNo, '#tags are only allowed at beginning task prefix', token.start, token.end);
+        pushError(lineNo, '#tags are only allowed at beginning task prefix', token.start, token.end, ERROR_CODES.MISPLACED_TAG);
       } else if (/^[A-Dx\-]$/.test(token.text)) {
         // Only flag single-letter priority tokens that are clearly misplaced
         // Don't flag them if they appear as values in key:value pairs
@@ -188,7 +300,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
 
         // If this looks like it's a value for a previous key, don't flag it
         if (!(prevToken && prevToken.text.endsWith(':')) && !(nextToken && nextToken.text.startsWith(':'))) {
-          pushError(lineNo, 'priority shorthand are only allowed at beginning task prefix', token.start, token.end);
+          pushError(lineNo, 'priority shorthand are only allowed at beginning task prefix', token.start, token.end, ERROR_CODES.MISPLACED_PRIORITY);
         }
       }
     }
@@ -221,7 +333,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
         const hasKVAfter = remainingTokens.some(t => t.text.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
 
         if (hasKVAfter) {
-          pushError(lineNo, 'strings need to be quoted or the remainder of the line will be assumed to be the task title');
+          pushError(lineNo, 'strings need to be quoted or the remainder of the line will be assumed to be the task title', 0, 0, ERROR_CODES.UNQUOTED_TITLE_WITH_KV);
         }
         foundTitle = true; // This becomes the title
       } else if (foundTitle && !inKeyValueSection) {
@@ -230,7 +342,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
         const hasKVAfter = remainingTokens.some(t => t.text.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
 
         if (hasKVAfter) {
-          pushError(lineNo, `values without keys are not allowed (except in task prefix shorthand): ${token.text}`);
+          pushError(lineNo, `values without keys are not allowed (except in task prefix shorthand): ${token.text}`, 0, 0, ERROR_CODES.VALUES_WITHOUT_KEYS);
         }
       }
     }
@@ -259,9 +371,9 @@ function lintLines(lines, opts = { indentSize: 2 }) {
     if (trimmed.startsWith('-')) {
       // bullet line
       // indentation must be multiple of indentSize
-      if (indent % indentSize !== 0) pushError(i, `Indentation ${indent} not multiple of ${indentSize} spaces`, indent, indent + 1);
+      if (indent % indentSize !== 0) pushError(i, `Indentation ${indent} not multiple of ${indentSize} spaces`, indent, indent + 1, ERROR_CODES.INVALID_INDENTATION);
       const afterDash = trimmed.slice(1).trim();
-      if (afterDash === '') pushError(i, 'Bullet line missing content', trimmed.length - 1, trimmed.length);
+      if (afterDash === '') pushError(i, 'Bullet line missing content', trimmed.length - 1, trimmed.length, ERROR_CODES.BULLET_MISSING_CONTENT);
 
       // Calculate offset of content after bullet and spaces
       const bulletOffset = indent + line.indexOf('-') + 1;
@@ -276,12 +388,12 @@ function lintLines(lines, opts = { indentSize: 2 }) {
         const parentIndent = stack[stack.length - 1].indent;
         if (indent - parentIndent > indentSize && indent - parentIndent !== indentSize) {
           // allowed: exactly indentSize deeper; otherwise warn
-          pushWarn(i, `Indentation jumped by ${indent - parentIndent} spaces (expected ${indentSize})`);
+          pushWarn(i, `Indentation jumped by ${indent - parentIndent} spaces (expected ${indentSize})`, 0, 0, ERROR_CODES.LARGE_INDENT_JUMP);
         }
       } else {
         // This is a root-level bullet, check if it should be indented (child without parent)
         if (indent > 0) {
-          pushError(i, 'bullet hierarchy is not indented correctly; child exists without parent');
+          pushError(i, 'bullet hierarchy is not indented correctly; child exists without parent', 0, 0, ERROR_CODES.INVALID_HIERARCHY);
         }
       }
       stack.push({ indent, lineNo: i });
@@ -338,9 +450,9 @@ function lintLines(lines, opts = { indentSize: 2 }) {
           }
 
           if (looksLikeMultilineContent) {
-            pushError(i, 'multi-line string value indentation without pipe; unexpected lines appearing indented within task');
+            pushError(i, 'multi-line string value indentation without pipe; unexpected lines appearing indented within task', 0, 0, ERROR_CODES.MULTILINE_WITHOUT_PIPE);
           } else {
-            pushError(i, 'Expected key: value or multi-line content indented under key with |');
+            pushError(i, 'Expected key: value or multi-line content indented under key with |', 0, 0, ERROR_CODES.INVALID_MULTILINE_CONTENT);
           }
         }
         continue;
@@ -364,7 +476,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
           foundContent = true;
           j++;
         }
-        if (!foundContent) pushError(i, `Multi-line '|' for key '${key}' has no indented content`);
+        if (!foundContent) pushError(i, `Multi-line '|' for key '${key}' has no indented content`, 0, 0, ERROR_CODES.MULTILINE_NO_CONTENT);
         // Mark that we're entering a multiline block
         insideMultilineBlock = { baseIndent, startLine: i };
       } else if (value.trim() === '') {
@@ -384,7 +496,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
           break;
         }
         if (foundIndentedContent) {
-          pushError(i, 'multi-line string value indentation without pipe; unexpected lines appearing indented within task');
+          pushError(i, 'multi-line string value indentation without pipe; unexpected lines appearing indented within task', 0, 0, ERROR_CODES.MULTILINE_WITHOUT_PIPE);
           // Set up the multiline block state to skip validation of the following lines
           insideMultilineBlock = { baseIndent, startLine: i };
         }
@@ -396,11 +508,11 @@ function lintLines(lines, opts = { indentSize: 2 }) {
           (value.startsWith("'") && value.endsWith("'"));
         if (hasSpace && !isQuoted) {
           // allow common date formats like 2025-10-05 (no spaces)
-          pushWarn(i, `Unquoted value with spaces for key "${key}" (consider quoting)`);
+          pushWarn(i, `Unquoted value with spaces for key "${key}" (consider quoting)`, 0, 0, ERROR_CODES.UNQUOTED_SPACED_VALUE);
         }
         // If key is id, check uniqueness
         if (key === 'id' && value) {
-          if (idSet.has(value)) pushError(i, `Duplicate id '${value}'`);
+          if (idSet.has(value)) pushError(i, `Duplicate id '${value}'`, 0, 0, ERROR_CODES.DUPLICATE_ID);
           else idSet.add(value);
         }
       }
@@ -421,9 +533,9 @@ function findPrecedingBulletIndex(lines, idx) {
 }
 
 // Support both CommonJS and ES module imports
-export { lintLines };
+export { lintLines, ERROR_CODES, ERROR_INFO };
 
 // CommonJS export for VS Code extension compatibility
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { lintLines };
+  module.exports = { lintLines, ERROR_CODES, ERROR_INFO };
 }
