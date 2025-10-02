@@ -1,0 +1,91 @@
+{
+  "name": "todo-task-language-support",
+  "displayName": "Todo Task Language Support",
+  "description": "Language support for *.task.md files with real-time linting",
+  "version": "0.1.0",
+  "publisher": "todo-cli",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "todo",
+    "task",
+    "markdown",
+    "linter",
+    "language-server"
+  ],
+  "main": "./src/extension.js",
+  "type": "module",
+  "activationEvents": [
+    "onLanguage:todo-task"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "todo-task",
+        "aliases": [
+          "Todo Task",
+          "todo-task"
+        ],
+        "extensions": [
+          ".task.md"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "todo-task",
+        "scopeName": "source.todo-task",
+        "path": "./syntaxes/todo-task.tmGrammar.json"
+      }
+    ],
+    "configuration": {
+      "title": "Todo Task Language Support",
+      "properties": {
+        "todoTask.linting.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable linting for todo task files"
+        },
+        "todoTask.linting.indentSize": {
+          "type": "number",
+          "default": 2,
+          "description": "Number of spaces for indentation (default: 2)"
+        },
+        "todoTask.linting.showWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings in addition to errors"
+        }
+      }
+    }
+  },
+  "commands": [
+    {
+      "command": "todoTask.lintFile",
+      "title": "Lint Current File",
+      "category": "Todo Task"
+    },
+    {
+      "command": "todoTask.showSettings",
+      "title": "Show Settings",
+      "category": "Todo Task"
+    }
+  ],
+  "scripts": {
+    "vscode:prepublish": "echo 'No build step required'",
+    "test": "echo 'No tests yet'"
+  },
+  "devDependencies": {},
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0",
+    "vscode-languageserver": "^8.1.0",
+    "vscode-languageserver-textdocument": "^1.0.8"
+  }
+}

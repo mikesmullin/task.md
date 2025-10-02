@@ -1,0 +1,201 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Todo Task",
+  "scopeName": "source.todo-task",
+  "patterns": [
+    {
+      "include": "#task-line"
+    },
+    {
+      "include": "#key-value-line"
+    },
+    {
+      "include": "#multiline-content"
+    },
+    {
+      "include": "#markdown-heading"
+    },
+    {
+      "include": "#comment"
+    }
+  ],
+  "repository": {
+    "task-line": {
+      "match": "^(\\s*)(-)\\s+(.*)$",
+      "captures": {
+        "1": {
+          "name": "punctuation.whitespace.leading.todo-task"
+        },
+        "2": {
+          "name": "punctuation.definition.list.begin.todo-task"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#prefix-tokens"
+            },
+            {
+              "include": "#quoted-string"
+            },
+            {
+              "include": "#key-value-pair"
+            },
+            {
+              "include": "#unquoted-content"
+            }
+          ]
+        }
+      }
+    },
+    "prefix-tokens": {
+      "patterns": [
+        {
+          "match": "\\b([ABCD])\\b",
+          "name": "keyword.priority.todo-task"
+        },
+        {
+          "match": "\\b(x)\\b",
+          "name": "keyword.completed.todo-task"
+        },
+        {
+          "match": "(@)([A-Za-z_][A-Za-z0-9_-]*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.stakeholder.todo-task"
+            },
+            "2": {
+              "name": "entity.name.stakeholder.todo-task"
+            }
+          }
+        },
+        {
+          "match": "(#)([A-Za-z_][A-Za-z0-9_-]*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.tag.todo-task"
+            },
+            "2": {
+              "name": "entity.name.tag.todo-task"
+            }
+          }
+        }
+      ]
+    },
+    "quoted-string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.todo-task",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.todo-task",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.todo-task",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.todo-task",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.backtick.todo-task",
+          "begin": "`",
+          "end": "`",
+          "patterns": [
+            {
+              "name": "constant.character.escape.todo-task",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "key-value-line": {
+      "match": "^(\\s+)([A-Za-z_][A-Za-z0-9_-]*)(:)\\s*(.*)$",
+      "captures": {
+        "1": {
+          "name": "punctuation.whitespace.leading.todo-task"
+        },
+        "2": {
+          "name": "variable.parameter.key.todo-task"
+        },
+        "3": {
+          "name": "punctuation.separator.key-value.todo-task"
+        },
+        "4": {
+          "patterns": [
+            {
+              "match": "\\|",
+              "name": "punctuation.definition.multiline.todo-task"
+            },
+            {
+              "include": "#quoted-string"
+            },
+            {
+              "include": "#unquoted-content"
+            }
+          ]
+        }
+      }
+    },
+    "key-value-pair": {
+      "match": "([A-Za-z_][A-Za-z0-9_-]*)(:)\\s*([^\\s].*)?",
+      "captures": {
+        "1": {
+          "name": "variable.parameter.key.todo-task"
+        },
+        "2": {
+          "name": "punctuation.separator.key-value.todo-task"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#quoted-string"
+            },
+            {
+              "include": "#unquoted-content"
+            }
+          ]
+        }
+      }
+    },
+    "multiline-content": {
+      "match": "^(\\s{4,})(.*)$",
+      "captures": {
+        "1": {
+          "name": "punctuation.whitespace.leading.todo-task"
+        },
+        "2": {
+          "name": "string.multiline.content.todo-task"
+        }
+      }
+    },
+    "markdown-heading": {
+      "match": "^(#{1,6})\\s+(.*)$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.heading.markdown"
+        },
+        "2": {
+          "name": "entity.name.section.markdown"
+        }
+      }
+    },
+    "comment": {
+      "match": ";.*$",
+      "name": "comment.line.semicolon.todo-task"
+    },
+    "unquoted-content": {
+      "match": "[^\\s:;]+",
+      "name": "string.unquoted.todo-task"
+    }
+  }
+}
