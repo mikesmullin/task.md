@@ -32,20 +32,28 @@
         "3": {
           "patterns": [
             {
-              "include": "#prefix-tokens"
-            },
-            {
-              "include": "#quoted-string"
-            },
-            {
-              "include": "#key-value-pair"
-            },
-            {
-              "include": "#unquoted-content"
+              "include": "#task-content"
             }
           ]
         }
       }
+    },
+    "task-content": {
+      "patterns": [
+        {
+          "include": "#prefix-tokens"
+        },
+        {
+          "include": "#quoted-string"
+        },
+        {
+          "include": "#key-value-pair"
+        },
+        {
+          "match": "[^\\s@#\"'`]+",
+          "name": "string.unquoted.todo-task"
+        }
+      ]
     },
     "prefix-tokens": {
       "patterns": [
@@ -58,26 +66,12 @@
           "name": "keyword.completed.todo-task"
         },
         {
-          "match": "(@)([A-Za-z_][A-Za-z0-9_-]*)",
-          "captures": {
-            "1": {
-              "name": "punctuation.definition.stakeholder.todo-task"
-            },
-            "2": {
-              "name": "entity.name.stakeholder.todo-task"
-            }
-          }
+          "match": "(@[A-Za-z_][A-Za-z0-9_-]*)",
+          "name": "constant.numeric.todo-task"
         },
         {
-          "match": "(#)([A-Za-z_][A-Za-z0-9_-]*)",
-          "captures": {
-            "1": {
-              "name": "punctuation.definition.tag.todo-task"
-            },
-            "2": {
-              "name": "entity.name.tag.todo-task"
-            }
-          }
+          "match": "(#[A-Za-z_][A-Za-z0-9_-]*)",
+          "name": "entity.name.tag.todo-task"
         }
       ]
     },
@@ -125,7 +119,7 @@
           "name": "punctuation.whitespace.leading.todo-task"
         },
         "2": {
-          "name": "variable.parameter.key.todo-task"
+          "name": "support.type.property-name.todo-task"
         },
         "3": {
           "name": "punctuation.separator.key-value.todo-task"
@@ -147,10 +141,10 @@
       }
     },
     "key-value-pair": {
-      "match": "([A-Za-z_][A-Za-z0-9_-]*)(:)\\s*([^\\s].*)?",
+      "match": "\\b([A-Za-z_][A-Za-z0-9_-]*)(:)\\s*([^\\s].*?(?=\\s+[A-Za-z_][A-Za-z0-9_-]*:|$))?",
       "captures": {
         "1": {
-          "name": "variable.parameter.key.todo-task"
+          "name": "support.type.property-name.todo-task"
         },
         "2": {
           "name": "punctuation.separator.key-value.todo-task"
