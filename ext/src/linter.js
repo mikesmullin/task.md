@@ -10,19 +10,32 @@ function lintLines(lines, opts = { indentSize: 2 }) {
   const stack = []; // track indent levels and last bullet indent
   let insideMultilineBlock = null; // track when we're inside a multiline block { startLine, baseIndent, endIndent }
 
-  function pushError(lineNo, msg) {
-    errors.push({ line: lineNo + 1, msg });
+  function pushError(lineNo, msg, startChar = 0, endChar = null) {
+    errors.push({
+      line: lineNo + 1,
+      msg,
+      startChar,
+      endChar: endChar !== null ? endChar : (lines[lineNo] ? lines[lineNo].length : 0)
+    });
   }
-  function pushWarn(lineNo, msg) {
-    warnings.push({ line: lineNo + 1, msg });
+  function pushWarn(lineNo, msg, startChar = 0, endChar = null) {
+    warnings.push({
+      line: lineNo + 1,
+      msg,
+      startChar,
+      endChar: endChar !== null ? endChar : (lines[lineNo] ? lines[lineNo].length : 0)
+    });
   }
 
   // Helper function to validate quote/backtick matching
-  function validateQuotes(text, lineNo) {
+  function validateQuotes(text, lineNo, lineOffset = 0) {
     let inDoubleQuote = false;
     let inSingleQuote = false;
     let inBacktick = false;
     let escapeNext = false;
+    let lastDoubleQuotePos = -1;
+    let lastSingleQuotePos = -1;
+    let lastBacktickPos = -1;
 
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
@@ -38,39 +51,55 @@ function lintLines(lines, opts = { indentSize: 2 }) {
       }
 
       if (char === '"' && !inSingleQuote && !inBacktick) {
-        inDoubleQuote = !inDoubleQuote;
+        if (inDoubleQuote) {
+          inDoubleQuote = false;
+        } else {
+          inDoubleQuote = true;
+          lastDoubleQuotePos = lineOffset + i;
+        }
       } else if (char === "'" && !inDoubleQuote && !inBacktick) {
-        inSingleQuote = !inSingleQuote;
+        if (inSingleQuote) {
+          inSingleQuote = false;
+        } else {
+          inSingleQuote = true;
+          lastSingleQuotePos = lineOffset + i;
+        }
       } else if (char === '`' && !inDoubleQuote && !inSingleQuote) {
-        inBacktick = !inBacktick;
+        if (inBacktick) {
+          inBacktick = false;
+        } else {
+          inBacktick = true;
+          lastBacktickPos = lineOffset + i;
+        }
       }
     }
 
     if (inDoubleQuote) {
-      pushError(lineNo, 'Unclosed double quote');
+      pushError(lineNo, 'Unclosed double quote', lastDoubleQuotePos, lastDoubleQuotePos + 1);
     }
     if (inSingleQuote) {
-      pushError(lineNo, 'Unclosed single quote');
+      pushError(lineNo, 'Unclosed single quote', lastSingleQuotePos, lastSingleQuotePos + 1);
     }
     if (inBacktick) {
-      pushError(lineNo, 'Unclosed backtick quote');
+      pushError(lineNo, 'Unclosed backtick quote', lastBacktickPos, lastBacktickPos + 1);
     }
   }
 
   // Helper function to parse and validate bullet line content
-  function validateBulletLine(content, lineNo) {
+  function validateBulletLine(content, lineNo, lineOffset = 0) {
     // Check for quote/backtick matching
-    validateQuotes(content, lineNo);
+    validateQuotes(content, lineNo, lineOffset);
 
     // Simple validation for misplaced prefix tokens and unquoted titles before key:value pairs
     // Split by spaces but respect quotes
     const tokens = [];
     let current = '';
+    let currentStart = 0;
     let inQuote = false;
     let quoteChar = '';
     let escapeNext = false;
 
-    // Tokenize respecting quotes
+    // Tokenize respecting quotes and track positions
     for (let i = 0; i < content.length; i++) {
       const char = content[i];
 
@@ -96,22 +125,35 @@ function lintLines(lines, opts = { indentSize: 2 }) {
         quoteChar = '';
       } else if (!inQuote && /\s/.test(char)) {
         if (current.trim()) {
-          tokens.push(current.trim());
+          tokens.push({
+            text: current.trim(),
+            start: lineOffset + currentStart,
+            end: lineOffset + i
+          });
           current = '';
         }
+        // Skip whitespace to find start of next token
+        while (i + 1 < content.length && /\s/.test(content[i + 1])) {
+          i++;
+        }
+        currentStart = i + 1;
       } else {
         current += char;
       }
     }
     if (current.trim()) {
-      tokens.push(current.trim());
+      tokens.push({
+        text: current.trim(),
+        start: lineOffset + currentStart,
+        end: lineOffset + content.length
+      });
     }
 
     // Find the boundary between prefixes and content
     let prefixEnd = 0;
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
-      const isPrefix = /^[A-Dx\-]$/.test(token) || token.startsWith('@') || token.startsWith('#');
+      const isPrefix = /^[A-Dx\-]$/.test(token.text) || token.text.startsWith('@') || token.text.startsWith('#');
       if (isPrefix) {
         prefixEnd = i + 1;
       } else {
@@ -124,29 +166,29 @@ function lintLines(lines, opts = { indentSize: 2 }) {
       const token = tokens[i];
 
       // Skip quoted strings and key:value pairs
-      const isQuoted = (token.startsWith('"') && token.endsWith('"')) ||
-        (token.startsWith('`') && token.endsWith('`')) ||
-        (token.startsWith("'") && token.endsWith("'"));
-      const isKeyValue = token.match(/^[A-Za-z_][A-Za-z0-9_-]*:/);
+      const isQuoted = (token.text.startsWith('"') && token.text.endsWith('"')) ||
+        (token.text.startsWith('`') && token.text.endsWith('`')) ||
+        (token.text.startsWith("'") && token.text.endsWith("'"));
+      const isKeyValue = token.text.match(/^[A-Za-z_][A-Za-z0-9_-]*:/);
 
       if (isQuoted || isKeyValue) {
         continue;
       }
 
       // Check for misplaced prefix tokens
-      if (token.startsWith('@')) {
-        pushError(lineNo, '@assignee tags are only allowed at beginning task prefix');
-      } else if (token.startsWith('#')) {
-        pushError(lineNo, '#tags are only allowed at beginning task prefix');
-      } else if (/^[A-Dx\-]$/.test(token)) {
+      if (token.text.startsWith('@')) {
+        pushError(lineNo, '@assignee tags are only allowed at beginning task prefix', token.start, token.end);
+      } else if (token.text.startsWith('#')) {
+        pushError(lineNo, '#tags are only allowed at beginning task prefix', token.start, token.end);
+      } else if (/^[A-Dx\-]$/.test(token.text)) {
         // Only flag single-letter priority tokens that are clearly misplaced
         // Don't flag them if they appear as values in key:value pairs
-        const prevToken = i > 0 ? tokens[i - 1] : '';
-        const nextToken = i < tokens.length - 1 ? tokens[i + 1] : '';
+        const prevToken = i > 0 ? tokens[i - 1] : null;
+        const nextToken = i < tokens.length - 1 ? tokens[i + 1] : null;
 
         // If this looks like it's a value for a previous key, don't flag it
-        if (!prevToken.endsWith(':') && !nextToken.startsWith(':')) {
-          pushError(lineNo, 'priority shorthand are only allowed at beginning task prefix');
+        if (!(prevToken && prevToken.text.endsWith(':')) && !(nextToken && nextToken.text.startsWith(':'))) {
+          pushError(lineNo, 'priority shorthand are only allowed at beginning task prefix', token.start, token.end);
         }
       }
     }
@@ -157,10 +199,10 @@ function lintLines(lines, opts = { indentSize: 2 }) {
 
     for (let i = prefixEnd; i < tokens.length; i++) {
       const token = tokens[i];
-      const isQuoted = (token.startsWith('"') && token.endsWith('"')) ||
-        (token.startsWith('`') && token.endsWith('`')) ||
-        (token.startsWith("'") && token.endsWith("'"));
-      const isKeyValue = token.match(/^[A-Za-z_][A-Za-z0-9_-]*:/);
+      const isQuoted = (token.text.startsWith('"') && token.text.endsWith('"')) ||
+        (token.text.startsWith('`') && token.text.endsWith('`')) ||
+        (token.text.startsWith("'") && token.text.endsWith("'"));
+      const isKeyValue = token.text.match(/^[A-Za-z_][A-Za-z0-9_-]*:/);
 
       if (isKeyValue) {
         inKeyValueSection = true;
@@ -176,7 +218,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
       if (!foundTitle && !inKeyValueSection) {
         // This could be an unquoted title, check if there are key:value pairs after it
         const remainingTokens = tokens.slice(i + 1);
-        const hasKVAfter = remainingTokens.some(t => t.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
+        const hasKVAfter = remainingTokens.some(t => t.text.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
 
         if (hasKVAfter) {
           pushError(lineNo, 'strings need to be quoted or the remainder of the line will be assumed to be the task title');
@@ -185,10 +227,10 @@ function lintLines(lines, opts = { indentSize: 2 }) {
       } else if (foundTitle && !inKeyValueSection) {
         // We already have a title, but this is another unquoted token before key:value section
         const remainingTokens = tokens.slice(i + 1);
-        const hasKVAfter = remainingTokens.some(t => t.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
+        const hasKVAfter = remainingTokens.some(t => t.text.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
 
         if (hasKVAfter) {
-          pushError(lineNo, `values without keys are not allowed (except in task prefix shorthand): ${token}`);
+          pushError(lineNo, `values without keys are not allowed (except in task prefix shorthand): ${token.text}`);
         }
       }
     }
@@ -217,12 +259,16 @@ function lintLines(lines, opts = { indentSize: 2 }) {
     if (trimmed.startsWith('-')) {
       // bullet line
       // indentation must be multiple of indentSize
-      if (indent % indentSize !== 0) pushError(i, `Indentation ${indent} not multiple of ${indentSize} spaces`);
+      if (indent % indentSize !== 0) pushError(i, `Indentation ${indent} not multiple of ${indentSize} spaces`, indent, indent + 1);
       const afterDash = trimmed.slice(1).trim();
-      if (afterDash === '') pushError(i, 'Bullet line missing content');
+      if (afterDash === '') pushError(i, 'Bullet line missing content', trimmed.length - 1, trimmed.length);
+
+      // Calculate offset of content after bullet and spaces
+      const bulletOffset = indent + line.indexOf('-') + 1;
+      const contentOffset = bulletOffset + (trimmed.slice(1).length - afterDash.length);
 
       // Validate bullet line content with enhanced checks
-      validateBulletLine(afterDash, i);
+      validateBulletLine(afterDash, i, contentOffset);
 
       // push stack frame: ensure nesting doesn't skip levels
       while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();

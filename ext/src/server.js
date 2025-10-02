@@ -101,57 +101,67 @@ documents.onDidOpen(e => {
 function validateTextDocument(textDocument) {
   try {
     connection.console.log(`Validating: ${textDocument.uri}`);
-    
+
     const text = textDocument.getText();
     const lines = text.split(/\r?\n/);
-    
+
     // Use the existing linter logic
     const lintOptions = {
       indentSize: 2  // Default indentation
     };
-    
+
     const { errors, warnings } = lintLines(lines, lintOptions);
-    
+
     const diagnostics = [];
-    
+
     // Convert errors to diagnostics
     for (const error of errors) {
       const lineIndex = error.line - 1; // Convert to 0-based index
       const line = lines[lineIndex] || '';
-      
+
       const diagnostic = {
         severity: DiagnosticSeverity.Error,
         range: {
-          start: { line: lineIndex, character: 0 },
-          end: { line: lineIndex, character: line.length }
+          start: { line: lineIndex, character: error.startChar || 0 },
+          end: { line: lineIndex, character: error.endChar || line.length }
         },
         message: error.msg,
         source: 'todo-task-linter'
       };
       diagnostics.push(diagnostic);
+
+      // Detailed trace for debugging
+      connection.console.log(`ERROR [${error.line}:${error.startChar || 0}-${error.endChar || line.length}]: "${error.msg}"`);
+      connection.console.log(`  Line content: "${line}"`);
+      connection.console.log(`  Highlighted: "${line.substring(error.startChar || 0, error.endChar || line.length)}"`);
     }
-    
+
     // Convert warnings to diagnostics
     for (const warning of warnings) {
       const lineIndex = warning.line - 1; // Convert to 0-based index
       const line = lines[lineIndex] || '';
-      
+
       const diagnostic = {
         severity: DiagnosticSeverity.Warning,
         range: {
-          start: { line: lineIndex, character: 0 },
-          end: { line: lineIndex, character: line.length }
+          start: { line: lineIndex, character: warning.startChar || 0 },
+          end: { line: lineIndex, character: warning.endChar || line.length }
         },
         message: warning.msg,
         source: 'todo-task-linter'
       };
       diagnostics.push(diagnostic);
+
+      // Detailed trace for debugging
+      connection.console.log(`WARNING [${warning.line}:${warning.startChar || 0}-${warning.endChar || line.length}]: "${warning.msg}"`);
+      connection.console.log(`  Line content: "${line}"`);
+      connection.console.log(`  Highlighted: "${line.substring(warning.startChar || 0, warning.endChar || line.length)}"`);
     }
 
     // Send the computed diagnostics to VS Code
     connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
     connection.console.log(`Sent ${diagnostics.length} diagnostics (${errors.length} errors, ${warnings.length} warnings) for ${textDocument.uri}`);
-    
+
   } catch (error) {
     connection.console.error(`Validation error: ${error.message}`);
     console.error('Validation error:', error);
