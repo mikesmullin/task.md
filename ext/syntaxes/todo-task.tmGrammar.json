@@ -4,22 +4,33 @@
   "scopeName": "source.todo-task",
   "patterns": [
     {
-      "include": "#task-line"
-    },
-    {
-      "include": "#key-value-line"
-    },
-    {
-      "include": "#multiline-content"
-    },
-    {
       "include": "#markdown-heading"
     },
     {
-      "include": "#comment"
+      "include": "#markdown-bold"
+    },
+    {
+      "include": "#markdown-italic"
+    },
+    {
+      "include": "#markdown-code-inline"
+    },
+    {
+      "include": "#task-line"
     }
   ],
   "repository": {
+    "markdown-heading": {
+      "match": "^(#{1,6})\\s+(.*)$",
+      "captures": {
+        "1": {
+          "name": "keyword.control"
+        },
+        "2": {
+          "name": "string.quoted.double"
+        }
+      }
+    },
     "task-line": {
       "match": "^(\\s*)(-)\\s+(.*)$",
       "captures": {
@@ -41,155 +52,70 @@
     "task-content": {
       "patterns": [
         {
-          "include": "#prefix-tokens"
+          "match": "(@[A-Za-z_][A-Za-z0-9_-]*)",
+          "name": "constant.numeric"
+        },
+        {
+          "match": "(#[A-Za-z_][A-Za-z0-9_-]*)",
+          "name": "entity.name.tag"
+        },
+        {
+          "match": "\\b([ABCD])\\b",
+          "name": "keyword.control"
+        },
+        {
+          "match": "\\b(x)\\b",
+          "name": "markup.deleted"
         },
         {
           "include": "#quoted-string"
         },
         {
-          "include": "#key-value-pair"
-        },
-        {
-          "match": "[^\\s@#\"'`]+",
-          "name": "string.unquoted.todo-task"
-        }
-      ]
-    },
-    "prefix-tokens": {
-      "patterns": [
-        {
-          "match": "\\b([ABCD])\\b",
-          "name": "keyword.priority.todo-task"
-        },
-        {
-          "match": "\\b(x)\\b",
-          "name": "markup.deleted.todo-task"
-        },
-        {
-          "match": "(@[A-Za-z_][A-Za-z0-9_-]*)",
-          "name": "constant.numeric.todo-task"
-        },
-        {
-          "match": "(#[A-Za-z_][A-Za-z0-9_-]*)",
-          "name": "entity.name.tag.todo-task"
+          "match": "([A-Za-z_][A-Za-z0-9_-]*)(:)",
+          "captures": {
+            "1": {
+              "name": "support.type.property-name"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value"
+            }
+          }
         }
       ]
     },
     "quoted-string": {
       "patterns": [
         {
-          "name": "string.quoted.double.todo-task",
+          "name": "string.quoted.double",
           "begin": "\"",
-          "end": "\"",
-          "patterns": [
-            {
-              "name": "constant.character.escape.todo-task",
-              "match": "\\\\."
-            }
-          ]
+          "end": "\""
         },
         {
-          "name": "string.quoted.single.todo-task",
+          "name": "string.quoted.single",
           "begin": "'",
-          "end": "'",
-          "patterns": [
-            {
-              "name": "constant.character.escape.todo-task",
-              "match": "\\\\."
-            }
-          ]
+          "end": "'"
         },
         {
-          "name": "string.quoted.backtick.todo-task",
+          "name": "string.quoted.backtick",
           "begin": "`",
-          "end": "`",
-          "patterns": [
-            {
-              "name": "constant.character.escape.todo-task",
-              "match": "\\\\."
-            }
-          ]
+          "end": "`"
         }
       ]
     },
-    "key-value-line": {
-      "match": "^(\\s+)([A-Za-z_][A-Za-z0-9_-]*)(:)\\s*(.*)$",
-      "captures": {
-        "1": {
-          "name": "punctuation.whitespace.leading.todo-task"
-        },
-        "2": {
-          "name": "support.type.property-name.todo-task"
-        },
-        "3": {
-          "name": "punctuation.separator.key-value.todo-task"
-        },
-        "4": {
-          "patterns": [
-            {
-              "match": "\\|",
-              "name": "punctuation.definition.multiline.todo-task"
-            },
-            {
-              "include": "#quoted-string"
-            },
-            {
-              "include": "#unquoted-content"
-            }
-          ]
-        }
-      }
+    "markdown-bold": {
+      "name": "markup.bold",
+      "begin": "\\*\\*",
+      "end": "\\*\\*"
     },
-    "key-value-pair": {
-      "match": "\\b([A-Za-z_][A-Za-z0-9_-]*)(:)\\s*([^\\s].*?(?=\\s+[A-Za-z_][A-Za-z0-9_-]*:|$))?",
-      "captures": {
-        "1": {
-          "name": "support.type.property-name.todo-task"
-        },
-        "2": {
-          "name": "punctuation.separator.key-value.todo-task"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#quoted-string"
-            },
-            {
-              "include": "#unquoted-content"
-            }
-          ]
-        }
-      }
+    "markdown-italic": {
+      "name": "markup.italic",
+      "begin": "\\*",
+      "end": "\\*"
     },
-    "multiline-content": {
-      "match": "^(\\s{4,})(.*)$",
-      "captures": {
-        "1": {
-          "name": "punctuation.whitespace.leading.todo-task"
-        },
-        "2": {
-          "name": "string.multiline.content.todo-task"
-        }
-      }
-    },
-    "markdown-heading": {
-      "match": "^(#{1,6})\\s+(.*)$",
-      "captures": {
-        "1": {
-          "name": "punctuation.definition.heading.markdown"
-        },
-        "2": {
-          "name": "entity.name.section.markdown"
-        }
-      }
-    },
-    "comment": {
-      "match": ";.*$",
-      "name": "comment.line.semicolon.todo-task"
-    },
-    "unquoted-content": {
-      "match": "[^\\s:;]+",
-      "name": "string.unquoted.todo-task"
+    "markdown-code-inline": {
+      "name": "markup.inline.raw",
+      "begin": "`",
+      "end": "`"
     }
   }
 }
