@@ -8,6 +8,7 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
   const idSet = new Set();
 
   const stack = []; // track indent levels and last bullet indent
+  let insideMultilineBlock = null; // track when we're inside a multiline block { startLine, baseIndent, endIndent }
 
   function pushError(lineNo, msg) {
     errors.push({ line: lineNo + 1, msg });
@@ -21,6 +22,17 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
     const line = raw.replace(/\t/g, '  '); // no tabs
     const trimmed = line.trim();
     const indent = line.match(/^(\s*)/)[1].length;
+
+    // Check if we're ending a multiline block
+    if (insideMultilineBlock && trimmed !== '') {
+      if (indent <= insideMultilineBlock.baseIndent) {
+        // We've exited the multiline block
+        insideMultilineBlock = null;
+      } else {
+        // Still inside multiline block - skip validation
+        continue;
+      }
+    }
 
     // Check for multi-line block content lines: they are validated when key: | is found
     if (trimmed === '') continue;
@@ -57,13 +69,30 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
       }
       stack.push({ indent, lineNo: i });
     } else {
-      // non-bullet lines: expected to be key: value or part of multi-line block
-      // Find nearest preceding bullet
+      // non-bullet lines: could be markdown content, headings, or key:value pairs under tasks
+
+      // Skip markdown headings (# ## ###), horizontal rules (---), and other markdown syntax
+      if (trimmed.match(/^#{1,6}\s+/) || trimmed.match(/^-{3,}$/) || trimmed.match(/^={3,}$/) || trimmed === '') {
+        continue; // Ignore markdown structure
+      }
+
+      // Find nearest preceding bullet to determine if this line should be part of a task
       const bulletIdx = findPrecedingBulletIndex(lines, i);
       if (bulletIdx === -1) {
-        pushWarn(i, 'Non-bullet content outside any task will be ignored');
-        continue;
+        // No preceding bullet - this is general markdown content, not task-related
+        continue; // Don't warn about general markdown content
       }
+
+      // Check if this line is properly indented relative to the preceding bullet
+      const bulletLine = lines[bulletIdx].replace(/\t/g, '  ');
+      const bulletIndent = bulletLine.match(/^(\s*)/)[1].length;
+
+      // Line should be indented more than the bullet to be part of the task
+      if (indent <= bulletIndent) {
+        // This line is at same or less indentation than bullet, so it's not part of the task
+        continue; // Ignore lines that aren't part of tasks
+      }
+
       // Check key:value format or continuation of a block
       const kvMatch = line.trim().match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$/);
       if (!kvMatch) {
@@ -90,6 +119,8 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
           j++;
         }
         if (!foundContent) pushError(i, `Multi-line '|' for key '${key}' has no indented content`);
+        // Mark that we're entering a multiline block
+        insideMultilineBlock = { baseIndent, startLine: i };
       } else {
         // ensure keys are valid, values quoted if containing spaces (we allow unquoted dates but still warn)
         const hasSpace = /\s/.test(value);

@@ -4,5 +4,8 @@
   "type": "module",
   "bin": {
     "todo": "src/cli.js"
+  },
+  "scripts": {
+    "test": "node test/runner.js"
   }
 }
