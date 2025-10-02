@@ -213,5 +213,169 @@ describe('Linter', () => {
       const spaceWarnings = result.warnings.filter(w => w.msg.includes('Unquoted value with spaces'));
       expect(spaceWarnings).toHaveLength(0);
     });
+
+    // New tests for enhanced linter features based on training examples
+
+    test('should detect unmatched closing backtick', () => {
+      const unmatchedBacktickLines = [
+        '- A @Alice #planning Prepare roadmap` due: 2025-10-05 weight: 10'
+      ];
+
+      const result = lintLines(unmatchedBacktickLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const quoteError = result.errors.find(e => e.msg.includes('Unclosed'));
+      expect(quoteError).toBeDefined();
+    });
+
+    test('should detect unclosed backtick', () => {
+      const unclosedBacktickLines = [
+        '- A @Alice #planning `Prepare roadmap due: 2025-10-05 weight: 10'
+      ];
+
+      const result = lintLines(unclosedBacktickLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const quoteError = result.errors.find(e => e.msg.includes('Unclosed backtick'));
+      expect(quoteError).toBeDefined();
+    });
+
+    test('should detect values without keys', () => {
+      const valuesWithoutKeysLines = [
+        '- A @Alice #planning `Prepare roadmap` 2025-10-05 weight: 10'
+      ];
+
+      const result = lintLines(valuesWithoutKeysLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const valueError = result.errors.find(e => e.msg.includes('values without keys are not allowed'));
+      expect(valueError).toBeDefined();
+    });
+
+    test('should detect misplaced @assignee tags', () => {
+      const misplacedAssigneeLines = [
+        '- A #planning `Prepare roadmap` due: 2025-10-05 weight: 10 @Alice'
+      ];
+
+      const result = lintLines(misplacedAssigneeLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const assigneeError = result.errors.find(e => e.msg.includes('@assignee tags are only allowed at beginning'));
+      expect(assigneeError).toBeDefined();
+    });
+
+    test('should detect misplaced #tags', () => {
+      const misplacedTagLines = [
+        '- A @Alice `Prepare roadmap` due: 2025-10-05 weight: 10 #planning'
+      ];
+
+      const result = lintLines(misplacedTagLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const tagError = result.errors.find(e => e.msg.includes('#tags are only allowed at beginning'));
+      expect(tagError).toBeDefined();
+    });
+
+    test('should detect misplaced priority shorthand', () => {
+      const misplacedPriorityLines = [
+        '- @Alice #planning `Prepare roadmap` due: 2025-10-05 weight: 10 A'
+      ];
+
+      const result = lintLines(misplacedPriorityLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const priorityError = result.errors.find(e => e.msg.includes('priority shorthand are only allowed at beginning'));
+      expect(priorityError).toBeDefined();
+    });
+
+    test('should detect unquoted strings followed by key:value pairs', () => {
+      const unquotedStringLines = [
+        '- A @Alice #planning Prepare roadmap due: 2025-10-05 weight: 10'
+      ];
+
+      const result = lintLines(unquotedStringLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const stringError = result.errors.find(e => e.msg.includes('strings need to be quoted'));
+      expect(stringError).toBeDefined();
+    });
+
+    test('should detect child bullets without proper parent hierarchy', () => {
+      const wrongHierarchyLines = [
+        '  - A @Alice #planning `Prepare roadmap` due: 2025-10-05 weight: 10',
+        '- B #backend `Refactor auth service` effort: 5h'
+      ];
+
+      const result = lintLines(wrongHierarchyLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const hierarchyError = result.errors.find(e => e.msg.includes('child exists without parent'));
+      expect(hierarchyError).toBeDefined();
+    });
+
+    test('should detect multi-line content without pipe', () => {
+      const multilineWithoutPipeLines = [
+        '- A @Alice #game',
+        '  title: `Plan "game engine" features`',
+        '  due: 2025-10-05',
+        '  weight: 10',
+        '  description:',
+        '    Plan the architecture for the game engine:',
+        '      - ECS system',
+        '      - Rendering backend',
+        '      - Asset pipeline'
+      ];
+
+      const result = lintLines(multilineWithoutPipeLines, { indentSize: 2 });
+      expect(result.errors.length).toBeGreaterThan(0);
+
+      const multilineError = result.errors.find(e => e.msg.includes('multi-line string value indentation without pipe'));
+      expect(multilineError).toBeDefined();
+    });
+
+    test('should accept properly formatted multi-line with pipe', () => {
+      const validMultilineLines = [
+        '- A @Alice #game',
+        '  title: `Plan "game engine" features`',
+        '  due: 2025-10-05',
+        '  weight: 10',
+        '  description: |',
+        '    Plan the architecture for the game engine:',
+        '      - ECS system',
+        '      - Rendering backend',
+        '      - Asset pipeline'
+      ];
+
+      const result = lintLines(validMultilineLines, { indentSize: 2 });
+      expect(result.errors).toHaveLength(0);
+    });
+
+    test('should accept valid unquoted title at end of line', () => {
+      const validUnquotedTitleLines = [
+        '- A @Alice #planning Prepare roadmap'
+      ];
+
+      const result = lintLines(validUnquotedTitleLines, { indentSize: 2 });
+      expect(result.errors).toHaveLength(0);
+    });
+
+    test('should accept valid prefix order', () => {
+      const validPrefixLines = [
+        '- A @Alice #planning `Prepare roadmap` due: 2025-10-05 weight: 10'
+      ];
+
+      const result = lintLines(validPrefixLines, { indentSize: 2 });
+      expect(result.errors).toHaveLength(0);
+    });
+
+    test('should accept proper bullet hierarchy', () => {
+      const validHierarchyLines = [
+        '- A @Alice #planning `Prepare roadmap` due: 2025-10-05 weight: 10',
+        '  - B #backend `Refactor auth service` effort: 5h'
+      ];
+
+      const result = lintLines(validHierarchyLines, { indentSize: 2 });
+      expect(result.errors).toHaveLength(0);
+    });
   });
 });

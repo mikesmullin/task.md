@@ -42,15 +42,152 @@ function parseArgs(args) {
 const argv = parseArgs(process.argv.slice(2));
 const cmd = argv._[0];
 
+function printHelp() {
+  console.log(`
+NAME
+       todo - A human-friendly task management system using Markdown
+
+SYNOPSIS
+       todo COMMAND [OPTIONS] [ARGUMENTS]
+       todo { select | lint | help | --help | -h }
+
+DESCRIPTION
+       todo is a command-line task management system that uses Markdown bullet 
+       lists as a schemaless hierarchical database. Tasks are stored as Markdown 
+       bullets with support for multi-line descriptions, prefix macros, and 
+       arbitrary key-value pairs.
+
+       All tasks are organized under a ## TODO heading in Markdown files. 
+       Non-bullet content is preserved but ignored during task processing.
+
+COMMANDS
+       select <file> [orderby <keys>] [into <output>]
+              Query and optionally sort tasks from a Markdown file.
+              
+              Without 'into', outputs tasks as JSON to stdout.
+              With 'into', writes sorted tasks back to the specified file
+              while preserving the original file structure and hierarchy.
+              
+              Examples:
+                todo select tasks.md
+                todo select tasks.md orderby priority desc
+                todo select tasks.md orderby priority asc, due desc
+                todo select tasks.md orderby weight desc into sorted.md
+
+       lint <file>
+              Validate a Markdown task file according to syntax rules.
+              
+              Checks for proper indentation, valid prefix macros, correct
+              key:value format, and other structural requirements.
+              
+              Exit codes:
+                0 - No issues found
+                1 - Errors detected
+              
+              Examples:
+                todo lint tasks.md
+
+       help, --help, -h
+              Display this help message and exit.
+
+TASK SYNTAX
+       Single-line task:
+         - A @Alice #urgent "Fix authentication bug" due: 2025-10-01 weight: 10
+
+       Multi-line task:
+         - A @Alice #urgent
+           title: "Fix authentication bug"  
+           due: 2025-10-01
+           weight: 10
+           description: |
+             The login system is failing for users with special
+             characters in their passwords.
+           notes: |
+             Check with security team before deploying.
+
+       Prefix macros (at start of task line):
+         x         - completed: true
+         -         - skipped: true  
+         A-D       - priority (A=highest, D=lowest)
+         @Name     - stakeholder: "Name"
+         #tag      - adds to tags array
+
+       Key-value pairs:
+         key: value              - Simple scalar value
+         key: "quoted value"     - Value with spaces
+         key: |                  - Multi-line value (indented content follows)
+
+ORDERING
+       The orderby clause supports multiple keys with direction specifiers:
+       
+       orderby <key1> [asc|desc], <key2> [asc|desc], ...
+       
+       Available keys include any task field (title, due, weight, priority, etc.)
+       plus the special 'parent' key for grouping subtasks.
+       
+       Default direction is ascending. Undefined values sort first.
+
+FILE FORMAT
+       Tasks must be under a ## TODO heading. The heading will be created if
+       it doesn't exist. Content above and below the TODO section is preserved.
+       
+       Example file structure:
+         # Project Documentation
+         
+         This is regular Markdown content.
+         
+         ## TODO
+         
+         - A @Alice "Task one" due: 2025-10-01
+         - B @Bob "Task two"  
+           - C "Subtask"
+         
+         ## Notes
+         
+         More regular Markdown content.
+
+EXAMPLES
+       List all tasks as JSON:
+         todo select project.md
+
+       Sort by priority then due date:
+         todo select project.md orderby priority asc, due desc
+
+       Create a sorted version of the file:
+         todo select project.md orderby weight desc into project-sorted.md
+
+       Validate task syntax:
+         todo lint project.md
+
+EXIT STATUS
+       0      Success
+       1      Error (lint failures, file not found, syntax errors)
+`);
+}
+
 function printUsageAndExit() {
   console.log(`Usage:
   todo select <file> [orderby <key [asc|desc], ...>] [into <output_file>]
   todo lint <file>
-`);
+  todo help
+  
+Use 'todo help' for detailed information.`);
   process.exit(1);
 }
 
-if (!cmd) printUsageAndExit();
+if (!cmd || argv.help || argv.h) {
+  if (!cmd) {
+    printUsageAndExit();
+  } else {
+    printHelp();
+    process.exit(0);
+  }
+}
+
+if (cmd === 'help') {
+  printHelp();
+  process.exit(0);
+}
 
 if (cmd === 'lint') {
   const file = argv._[1];

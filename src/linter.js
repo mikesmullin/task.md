@@ -17,6 +17,183 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
     warnings.push({ line: lineNo + 1, msg });
   }
 
+  // Helper function to validate quote/backtick matching
+  function validateQuotes(text, lineNo) {
+    let inDoubleQuote = false;
+    let inSingleQuote = false;
+    let inBacktick = false;
+    let escapeNext = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"' && !inSingleQuote && !inBacktick) {
+        inDoubleQuote = !inDoubleQuote;
+      } else if (char === "'" && !inDoubleQuote && !inBacktick) {
+        inSingleQuote = !inSingleQuote;
+      } else if (char === '`' && !inDoubleQuote && !inSingleQuote) {
+        inBacktick = !inBacktick;
+      }
+    }
+
+    if (inDoubleQuote) {
+      pushError(lineNo, 'Unclosed double quote');
+    }
+    if (inSingleQuote) {
+      pushError(lineNo, 'Unclosed single quote');
+    }
+    if (inBacktick) {
+      pushError(lineNo, 'Unclosed backtick quote');
+    }
+  }
+
+  // Helper function to parse and validate bullet line content
+  function validateBulletLine(content, lineNo) {
+    // Check for quote/backtick matching
+    validateQuotes(content, lineNo);
+
+    // Simple validation for misplaced prefix tokens and unquoted titles before key:value pairs
+    // Split by spaces but respect quotes
+    const tokens = [];
+    let current = '';
+    let inQuote = false;
+    let quoteChar = '';
+    let escapeNext = false;
+
+    // Tokenize respecting quotes
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+
+      if (escapeNext) {
+        current += char;
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        current += char;
+        continue;
+      }
+
+      if (!inQuote && (char === '"' || char === '`' || char === "'")) {
+        inQuote = true;
+        quoteChar = char;
+        current += char;
+      } else if (inQuote && char === quoteChar) {
+        inQuote = false;
+        current += char;
+        quoteChar = '';
+      } else if (!inQuote && /\s/.test(char)) {
+        if (current.trim()) {
+          tokens.push(current.trim());
+          current = '';
+        }
+      } else {
+        current += char;
+      }
+    }
+    if (current.trim()) {
+      tokens.push(current.trim());
+    }
+
+    // Find the boundary between prefixes and content
+    let prefixEnd = 0;
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      const isPrefix = /^[A-Dx\-]$/.test(token) || token.startsWith('@') || token.startsWith('#');
+      if (isPrefix) {
+        prefixEnd = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    // Check for misplaced prefix tokens after the prefix section
+    for (let i = prefixEnd; i < tokens.length; i++) {
+      const token = tokens[i];
+
+      // Skip quoted strings and key:value pairs
+      const isQuoted = (token.startsWith('"') && token.endsWith('"')) ||
+        (token.startsWith('`') && token.endsWith('`')) ||
+        (token.startsWith("'") && token.endsWith("'"));
+      const isKeyValue = token.match(/^[A-Za-z_][A-Za-z0-9_-]*:/);
+
+      if (isQuoted || isKeyValue) {
+        continue;
+      }
+
+      // Check for misplaced prefix tokens
+      if (token.startsWith('@')) {
+        pushError(lineNo, '@assignee tags are only allowed at beginning task prefix');
+      } else if (token.startsWith('#')) {
+        pushError(lineNo, '#tags are only allowed at beginning task prefix');
+      } else if (/^[A-Dx\-]$/.test(token)) {
+        // Only flag single-letter priority tokens that are clearly misplaced
+        // Don't flag them if they appear as values in key:value pairs
+        const prevToken = i > 0 ? tokens[i - 1] : '';
+        const nextToken = i < tokens.length - 1 ? tokens[i + 1] : '';
+
+        // If this looks like it's a value for a previous key, don't flag it
+        if (!prevToken.endsWith(':') && !nextToken.startsWith(':')) {
+          pushError(lineNo, 'priority shorthand are only allowed at beginning task prefix');
+        }
+      }
+    }
+
+    // Check for unquoted title followed by key:value pairs OR bare values in wrong places
+    let foundTitle = false;
+    let inKeyValueSection = false;
+
+    for (let i = prefixEnd; i < tokens.length; i++) {
+      const token = tokens[i];
+      const isQuoted = (token.startsWith('"') && token.endsWith('"')) ||
+        (token.startsWith('`') && token.endsWith('`')) ||
+        (token.startsWith("'") && token.endsWith("'"));
+      const isKeyValue = token.match(/^[A-Za-z_][A-Za-z0-9_-]*:/);
+
+      if (isKeyValue) {
+        inKeyValueSection = true;
+        continue;
+      }
+
+      if (isQuoted) {
+        foundTitle = true;
+        continue;
+      }
+
+      // This is an unquoted token
+      if (!foundTitle && !inKeyValueSection) {
+        // This could be an unquoted title, check if there are key:value pairs after it
+        const remainingTokens = tokens.slice(i + 1);
+        const hasKVAfter = remainingTokens.some(t => t.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
+
+        if (hasKVAfter) {
+          pushError(lineNo, 'strings need to be quoted or the remainder of the line will be assumed to be the task title');
+        }
+        foundTitle = true; // This becomes the title
+      } else if (foundTitle && !inKeyValueSection) {
+        // We already have a title, but this is another unquoted token before key:value section
+        const remainingTokens = tokens.slice(i + 1);
+        const hasKVAfter = remainingTokens.some(t => t.match(/^[A-Za-z_][A-Za-z0-9_-]*:/));
+
+        if (hasKVAfter) {
+          pushError(lineNo, `values without keys are not allowed (except in task prefix shorthand): ${token}`);
+        }
+      }
+    }
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
     const line = raw.replace(/\t/g, '  '); // no tabs
@@ -43,20 +220,9 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
       if (indent % indentSize !== 0) pushError(i, `Indentation ${indent} not multiple of ${indentSize} spaces`);
       const afterDash = trimmed.slice(1).trim();
       if (afterDash === '') pushError(i, 'Bullet line missing content');
-      // prefixes are tokens before first quoted or first key:value (or EOL)
-      // Basic scan for invalid prefix tokens
-      const tokens = afterDash.split(/\s+/);
-      for (const t of tokens) {
-        if (t.includes(':') || t.startsWith('"') || t.startsWith('`')) break;
-        if (/^#/.test(t) || /^@/.test(t) || /^[A-Dx\-]$/.test(t)) continue;
-        // If token looks like key:value, stop scanning
-        if (t.includes(':')) break;
-        // else if token is like id:..., break
-        // else token may be a bare string (title) - that's allowed if quoted
-        if (/^`.*`$/.test(t) || /^".*"$/.test(t)) break;
-        // anything else is suspicious
-        // but allow alnum short tokens (we can't be overly strict)
-      }
+
+      // Validate bullet line content with enhanced checks
+      validateBulletLine(afterDash, i);
 
       // push stack frame: ensure nesting doesn't skip levels
       while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
@@ -65,6 +231,11 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
         if (indent - parentIndent > indentSize && indent - parentIndent !== indentSize) {
           // allowed: exactly indentSize deeper; otherwise warn
           pushWarn(i, `Indentation jumped by ${indent - parentIndent} spaces (expected ${indentSize})`);
+        }
+      } else {
+        // This is a root-level bullet, check if it should be indented (child without parent)
+        if (indent > 0) {
+          pushError(i, 'bullet hierarchy is not indented correctly; child exists without parent');
         }
       }
       stack.push({ indent, lineNo: i });
@@ -96,7 +267,36 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
       // Check key:value format or continuation of a block
       const kvMatch = line.trim().match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$/);
       if (!kvMatch) {
-        pushError(i, 'Expected key: value or multi-line content indented under key with |');
+        // This line doesn't match key:value format
+        // Check if we're inside a multiline block (which is allowed)
+        if (insideMultilineBlock) {
+          // This is continuation of multiline content, which is fine
+          continue;
+        } else {
+          // Check if this looks like orphaned content that should have used pipe
+          // This heuristic: if the line has content and there are more indented lines following,
+          // it might be multi-line content without proper pipe syntax
+          let looksLikeMultilineContent = false;
+          for (let j = i + 1; j < lines.length; j++) {
+            const nextLine = lines[j].replace(/\t/g, '  ');
+            const nextTrimmed = nextLine.trim();
+            const nextIndent = nextLine.match(/^(\s*)/)[1].length;
+
+            if (nextTrimmed === '') continue;
+            if (nextTrimmed.startsWith('-')) break;
+            if (nextIndent <= indent) break;
+            if (nextIndent > indent) {
+              looksLikeMultilineContent = true;
+              break;
+            }
+          }
+
+          if (looksLikeMultilineContent) {
+            pushError(i, 'multi-line string value indentation without pipe; unexpected lines appearing indented within task');
+          } else {
+            pushError(i, 'Expected key: value or multi-line content indented under key with |');
+          }
+        }
         continue;
       }
       const key = kvMatch[1];
@@ -121,10 +321,33 @@ export function lintLines(lines, opts = { indentSize: 2 }) {
         if (!foundContent) pushError(i, `Multi-line '|' for key '${key}' has no indented content`);
         // Mark that we're entering a multiline block
         insideMultilineBlock = { baseIndent, startLine: i };
+      } else if (value.trim() === '') {
+        // Key with no value - check if there's indented content following (should use pipe)
+        const baseIndent = indent;
+        let j = i + 1;
+        let foundIndentedContent = false;
+        while (j < lines.length) {
+          const nxt = lines[j].replace(/\t/g, '  ');
+          const nxtTrim = nxt.trim();
+          const nxtIndent = nxt.match(/^(\s*)/)[1].length;
+          if (nxtTrim === '') { j++; continue; }
+          // if next non-empty line is a bullet or has indent <= baseIndent => block ended
+          if (nxtTrim.startsWith('-') && nxtIndent <= baseIndent) break;
+          if (nxtIndent <= baseIndent) break;
+          foundIndentedContent = true;
+          break;
+        }
+        if (foundIndentedContent) {
+          pushError(i, 'multi-line string value indentation without pipe; unexpected lines appearing indented within task');
+          // Set up the multiline block state to skip validation of the following lines
+          insideMultilineBlock = { baseIndent, startLine: i };
+        }
       } else {
         // ensure keys are valid, values quoted if containing spaces (we allow unquoted dates but still warn)
         const hasSpace = /\s/.test(value);
-        const isQuoted = (value.startsWith('"') && value.endsWith('"')) || (value.startsWith('`') && value.endsWith('`'));
+        const isQuoted = (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith('`') && value.endsWith('`')) ||
+          (value.startsWith("'") && value.endsWith("'"));
         if (hasSpace && !isQuoted) {
           // allow common date formats like 2025-10-05 (no spaces)
           pushWarn(i, `Unquoted value with spaces for key "${key}" (consider quoting)`);
