@@ -4,7 +4,7 @@ This is a sample todo task file to test the VS Code extension.
 
 ## TODO
 
-- A @Alice #urgent "Fix authentication bug" due: 2025-10-01 weight: 10
+- x A @Alice #urgent "Fix authentication bug" due: 2025-10-01 weight: 10
   description: |
     The login system is failing for users with special
     characters in their passwords.

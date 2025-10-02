@@ -63,7 +63,7 @@
         },
         {
           "match": "\\b(x)\\b",
-          "name": "keyword.completed.todo-task"
+          "name": "markup.deleted.todo-task"
         },
         {
           "match": "(@[A-Za-z_][A-Za-z0-9_-]*)",
