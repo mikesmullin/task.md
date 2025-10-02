@@ -1,0 +1,33 @@
+# Node modules (except production dependencies)
+node_modules/**
+!node_modules/vscode-languageclient/**
+!node_modules/vscode-languageserver/**
+!node_modules/vscode-languageserver-protocol/**
+!node_modules/vscode-languageserver-textdocument/**
+!node_modules/vscode-languageserver-types/**
+!node_modules/vscode-jsonrpc/**
+
+# Development files
+.vscode/**
+test/**
+*.test.js
+*.spec.js
+
+# Build and development scripts
+package.sh
+install.sh
+DEVELOPMENT.md
+
+# Git files
+.git/**
+.gitignore
+
+# Other unnecessary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Source maps and dev builds
+*.map
+out/test/**
