@@ -2,7 +2,7 @@
   "name": "todo-task-language-support",
   "displayName": "Todo Task Language Support",
   "description": "Language support for *.task.md files with real-time linting",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "todo-cli",
   "license": "MIT",
   "engines": {
