@@ -21,15 +21,32 @@
   ],
   "repository": {
     "markdown-heading": {
-      "match": "^(#{1,6})\\s+(.*)$",
-      "captures": {
-        "1": {
-          "name": "keyword.control"
+      "patterns": [
+        {
+          "match": "^(#{1}\\s+.*)$",
+          "name": "markup.heading.1.markdown"
         },
-        "2": {
-          "name": "string.quoted.double"
+        {
+          "match": "^(#{2}\\s+.*)$",
+          "name": "markup.heading.2.markdown"
+        },
+        {
+          "match": "^(#{3}\\s+.*)$",
+          "name": "markup.heading.3.markdown"
+        },
+        {
+          "match": "^(#{4}\\s+.*)$",
+          "name": "markup.heading.4.markdown"
+        },
+        {
+          "match": "^(#{5}\\s+.*)$",
+          "name": "markup.heading.5.markdown"
+        },
+        {
+          "match": "^(#{6}\\s+.*)$",
+          "name": "markup.heading.6.markdown"
         }
-      }
+      ]
     },
     "task-line": {
       "match": "^(\\s*)(-)\\s+(.*)$",
@@ -103,17 +120,17 @@
       ]
     },
     "markdown-bold": {
-      "name": "markup.bold",
+      "name": "markup.bold.markdown",
       "begin": "\\*\\*",
       "end": "\\*\\*"
     },
     "markdown-italic": {
-      "name": "markup.italic",
+      "name": "markup.italic.markdown",
       "begin": "\\*",
       "end": "\\*"
     },
     "markdown-code-inline": {
-      "name": "markup.inline.raw",
+      "name": "markup.inline.raw.markdown",
       "begin": "`",
       "end": "`"
     }
