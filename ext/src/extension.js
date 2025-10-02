@@ -1,19 +1,13 @@
-import * as vscode from 'vscode';
-import {
+const vscode = require('vscode');
+const {
   LanguageClient,
-  LanguageClientOptions,
-  ServerOptions,
   TransportKind
-} from 'vscode-languageclient/node.js';
-import { fileURLToPath } from 'url';
-import path from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+} = require('vscode-languageclient/node');
+const path = require('path');
 
 let client;
 
-export function activate(context) {
+function activate(context) {
   console.log('Todo Task Language Support extension is now active!');
 
   // Server options - use the language server in the same extension
@@ -31,7 +25,10 @@ export function activate(context) {
 
   // Client options
   const clientOptions = {
-    documentSelector: [{ scheme: 'file', language: 'todo-task' }],
+    documentSelector: [
+      { scheme: 'file', language: 'todo-task' },
+      { scheme: 'file', pattern: '**/*.task.md' }
+    ],
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher('**/*.task.md')
     }
@@ -46,9 +43,15 @@ export function activate(context) {
   );
 
   // Start the client. This will also launch the server
-  client.start();
+  const startPromise = client.start();
 
-  // Register additional commands for the extension
+  // Add error handling for startup
+  startPromise.then(() => {
+    console.log('Language server started successfully!');
+  }).catch((error) => {
+    console.error('Error starting language client:', error);
+    vscode.window.showErrorMessage(`Error starting language client: ${error.message}`);
+  });  // Register additional commands for the extension
   const disposables = [
     vscode.commands.registerCommand('todoTask.lintFile', () => {
       const editor = vscode.window.activeTextEditor;
@@ -75,11 +78,19 @@ export function activate(context) {
   ];
 
   context.subscriptions.push(...disposables);
+
+  // Add the client to subscriptions so it gets disposed properly
+  context.subscriptions.push(client);
 }
 
-export function deactivate() {
+function deactivate() {
   if (!client) {
     return undefined;
   }
   return client.stop();
 }
+
+module.exports = {
+  activate,
+  deactivate
+};
