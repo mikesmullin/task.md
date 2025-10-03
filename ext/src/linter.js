@@ -265,7 +265,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
     let prefixEnd = 0;
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
-      const isPrefix = /^[A-Dx\-]$/.test(token.text) || token.text.startsWith('@') || token.text.startsWith('#');
+      const isPrefix = /^[A-Dx\-]$|^\[x\]$|^\[_\]$|^\[-\]$/.test(token.text) || token.text.startsWith('@') || token.text.startsWith('#');
       if (isPrefix) {
         prefixEnd = i + 1;
       } else {
