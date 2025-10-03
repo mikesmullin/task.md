@@ -41,7 +41,7 @@ function parseQuery(query) {
   function peek() { return tokens[i]; }
   function consume() { return tokens[i++]; }
   function expect(word) {
-    if (peek() !== word) throw new Error(`Expected '${word}', got '${peek()}'`);
+    if (peek()?.toUpperCase() !== word.toUpperCase()) throw new Error(`Expected '${word}', got '${peek()}'`);
     return consume();
   }
 
@@ -157,7 +157,7 @@ function evaluateWhere(task, whereTokens) {
       return taskValue > compareValue;
     } else if (op === '<') {
       return taskValue < compareValue;
-    } else if (op === 'CONTAINS') {
+    } else if (op.toUpperCase() === 'CONTAINS') {
       if (Array.isArray(taskValue)) {
         return taskValue.includes(compareValue);
       } else if (typeof taskValue === 'string') {
