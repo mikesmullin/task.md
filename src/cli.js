@@ -8,6 +8,155 @@ import { serializeTasksToLines } from './serializer.js';
 import { replaceTodoSection } from './fileSection.js';
 import { formatAsTable } from './tableFormatter.js';
 
+// Simple SQL-like query parser
+function parseQuery(query) {
+  // Tokenize, handling quotes
+  const tokens = [];
+  let i = 0;
+  while (i < query.length) {
+    if (query[i] === '"' || query[i] === "'") {
+      const quote = query[i];
+      i++;
+      let str = '';
+      while (i < query.length && query[i] !== quote) {
+        str += query[i];
+        i++;
+      }
+      if (query[i] === quote) i++;
+      tokens.push(str);
+    } else if (/\s/.test(query[i])) {
+      i++;
+    } else {
+      let word = '';
+      while (i < query.length && !/\s/.test(query[i])) {
+        word += query[i];
+        i++;
+      }
+      tokens.push(word);
+    }
+  }
+
+  i = 0;
+
+  function peek() { return tokens[i]; }
+  function consume() { return tokens[i++]; }
+  function expect(word) {
+    if (peek() !== word) throw new Error(`Expected '${word}', got '${peek()}'`);
+    return consume();
+  }
+
+  const result = {};
+
+  const command = consume().toUpperCase();
+  result.command = command;
+
+  if (command === 'SELECT') {
+    result.fields = [];
+    if (peek() === '*') {
+      result.fields = ['*'];
+      consume();
+    } else {
+      while (peek() && peek().toUpperCase() !== 'FROM') {
+        result.fields.push(consume());
+        if (peek() === ',') consume();
+      }
+    }
+    expect('FROM');
+    result.file = consume();
+    if (peek() && peek().toUpperCase() === 'WHERE') {
+      consume();
+      const whereTokens = [];
+      while (peek() && peek().toUpperCase() !== 'ORDER' && peek().toUpperCase() !== 'INTO') {
+        whereTokens.push(consume());
+      }
+      result.where = whereTokens;
+    }
+    if (peek() && peek().toUpperCase() === 'ORDER') {
+      expect('ORDER');
+      expect('BY');
+      result.orderBy = [];
+      while (peek() && peek().toUpperCase() !== 'INTO') {
+        const key = consume();
+        let dir = 'asc';
+        if (peek() && (peek().toUpperCase() === 'ASC' || peek().toUpperCase() === 'DESC')) {
+          dir = consume().toLowerCase();
+        }
+        result.orderBy.push({ key, dir });
+        if (peek() === ',') consume();
+      }
+    }
+    if (peek() && peek().toUpperCase() === 'INTO') {
+      expect('INTO');
+      result.into = consume();
+    }
+  } else if (command === 'UPDATE') {
+    result.file = consume();
+    expect('SET');
+    result.set = [];
+    while (peek() && peek().toUpperCase() !== 'WHERE') {
+      const key = consume();
+      const eq = consume();
+      if (eq !== '=') throw new Error('Expected = in SET');
+      const value = consume();
+      result.set.push({ key, value });
+      if (peek() === ',') consume();
+    }
+    if (peek() && peek().toUpperCase() === 'WHERE') {
+      consume();
+      const whereTokens = [];
+      while (peek()) {
+        whereTokens.push(consume());
+      }
+      result.where = whereTokens;
+    }
+  } else if (command === 'DELETE') {
+    expect('FROM');
+    result.file = consume();
+    if (peek() && peek().toUpperCase() === 'WHERE') {
+      consume();
+      const whereTokens = [];
+      while (peek()) {
+        whereTokens.push(consume());
+      }
+      result.where = whereTokens;
+    }
+  } else {
+    throw new Error(`Unknown command: ${command}`);
+  }
+
+  return result;
+}
+
+// Simple WHERE evaluator
+function evaluateWhere(task, whereTokens) {
+  if (!whereTokens || whereTokens.length === 0) return true;
+  // Simple: key op value
+  if (whereTokens.length >= 3) {
+    const key = whereTokens[0];
+    const op = whereTokens[1];
+    let value = whereTokens[2];
+    let taskValue = task[key];
+    if (taskValue === undefined && task.data) taskValue = task.data[key];
+    // Special handling for boolean fields
+    if ((key === 'completed' || key === 'skipped') && taskValue === undefined) {
+      taskValue = false;
+    }
+    let compareValue = value;
+    if (value === 'true') compareValue = true;
+    else if (value === 'false') compareValue = false;
+    else if (!isNaN(value)) compareValue = Number(value);
+    else compareValue = value.replace(/['"]/g, '');
+    if (op === '=') {
+      return taskValue == compareValue;
+    } else if (op === '>') {
+      return taskValue > compareValue;
+    } else if (op === '<') {
+      return taskValue < compareValue;
+    }
+  }
+  return true;
+}
+
 // Simple argument parser to replace minimist
 function parseArgs(args) {
   const result = { _: [] };
@@ -50,7 +199,7 @@ NAME
 
 SYNOPSIS
        todo COMMAND [OPTIONS] [ARGUMENTS]
-       todo { select | lint | help | --help | -h }
+       todo { query | lint | help }
 
 DESCRIPTION
        todo is a command-line task management system that uses Markdown bullet 
@@ -62,23 +211,27 @@ DESCRIPTION
        Non-bullet content is preserved but ignored during task processing.
 
 COMMANDS
-       select <file> [orderby <keys>] [--format <format>] [into <output>]
-              Query and optionally sort tasks from a Markdown file.
+       query <sql-query> [--format/-o/-o <format>]
+              Execute a SQL-like query on a Markdown task file.
               
-              Without 'into', outputs tasks to stdout in the specified format.
-              With 'into', writes sorted tasks back to the specified file
-              while preserving the original file structure and hierarchy.
+              Supported queries:
+                SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [INTO <output>]
+                UPDATE <file> SET assignments WHERE condition
+                DELETE FROM <file> WHERE condition
               
               Format options:
                 json   - JSON output (default)
                 table  - Markdown table format
               
               Examples:
-                todo select tasks.md
-                todo select tasks.md --format table
-                todo select tasks.md orderby priority desc
-                todo select tasks.md orderby priority asc, due desc --format table
-                todo select tasks.md orderby weight desc into sorted.md
+                todo query "SELECT * FROM tasks.md"
+                todo query "SELECT title, priority FROM tasks.md WHERE completed = false"
+                todo query "SELECT * FROM tasks.md ORDER BY priority DESC"
+                todo query "SELECT * FROM tasks.md ORDER BY priority ASC, due DESC INTO sorted.md"
+                todo query "UPDATE tasks.md SET priority = 'A' WHERE id = 1"
+                todo query "DELETE FROM tasks.md WHERE completed = true"
+                todo query "SELECT * FROM tasks.md" --format/-o table
+                todo query -o json "SELECT * FROM tasks.md WHERE completed = false"
 
        lint <file>
               Validate a Markdown task file according to syntax rules.
@@ -93,7 +246,7 @@ COMMANDS
               Examples:
                 todo lint tasks.md
 
-       help, --help, -h
+       help
               Display this help message and exit.
 
 TASK SYNTAX
@@ -124,9 +277,9 @@ TASK SYNTAX
          key: |                  - Multi-line value (indented content follows)
 
 ORDERING
-       The orderby clause supports multiple keys with direction specifiers:
+       The ORDER BY clause supports multiple keys with direction specifiers:
        
-       orderby <key1> [asc|desc], <key2> [asc|desc], ...
+       ORDER BY <key1> [ASC|DESC], <key2> [ASC|DESC], ...
        
        Available keys include any task field (title, due, weight, priority, etc.)
        plus the special 'parent' key for grouping subtasks.
@@ -154,22 +307,31 @@ FILE FORMAT
 
 EXAMPLES
        List all tasks as JSON:
-         todo select project.md
+         todo query "SELECT * FROM project.md"
 
        List all tasks as a table:
-         todo select project.md --format table
+         todo query "SELECT * FROM project.md" --format/-o table
 
-       Sort by priority then due date:
-         todo select project.md orderby priority asc, due desc
+       Filter and sort by priority then due date:
+         todo query "SELECT * FROM project.md WHERE completed = false ORDER BY priority ASC, due DESC"
 
        Sort by priority and display as table:
-         todo select project.md orderby priority desc --format table
+         todo query "SELECT * FROM project.md ORDER BY priority DESC" --format/-o table
 
        Create a sorted version of the file:
-         todo select project.md orderby weight desc into project-sorted.md
+         todo query "SELECT * FROM project.md ORDER BY weight DESC INTO project-sorted.md"
+
+       Update task priority:
+         todo query "UPDATE project.md SET priority = 'A' WHERE id = 1"
+
+       Delete completed tasks:
+         todo query "DELETE FROM project.md WHERE completed = true"
 
        Validate task syntax:
          todo lint project.md
+
+       Get help:
+         todo help
 
 EXIT STATUS
        0      Success
@@ -179,7 +341,7 @@ EXIT STATUS
 
 function printUsageAndExit() {
   console.log(`Usage:
-  todo select <file> [orderby <key [asc|desc], ...>] [--format <json|table>] [into <output_file>]
+  todo query <sql-query> [--format/-o <json|table>]
   todo lint <file>
   todo help
   
@@ -188,7 +350,7 @@ Use 'todo help' for detailed information.`);
 }
 
 if (!cmd || argv.help || argv.h) {
-  if (!cmd) {
+  if (!cmd && !argv.query && !argv.q) {
     printUsageAndExit();
   } else {
     printHelp();
@@ -215,6 +377,178 @@ if (cmd === 'lint') {
   process.exit(errors.length ? 1 : 0);
 }
 
+// Handle query command
+if (cmd === 'query') {
+  const queryStr = argv._[1];
+  if (!queryStr) {
+    console.error('Query string required');
+    process.exit(1);
+  }
+  let parsedQuery;
+  try {
+    parsedQuery = parseQuery(queryStr);
+  } catch (err) {
+    console.error(`Query parsing error: ${err.message}`);
+    process.exit(1);
+  }
+
+  const format = argv.format || argv.o || 'json';
+  if (!['json', 'table'].includes(format)) {
+    console.error(`Invalid format '${format}'. Supported formats: json, table`);
+    process.exit(1);
+  }
+
+  const file = parsedQuery.file;
+  if (!file || !fs.existsSync(file)) {
+    console.error('File required and must exist');
+    process.exit(1);
+  }
+
+  // Parse file -> throws on lint errors
+  let parsed;
+  try {
+    parsed = parseFileToTree(file, { indentSize: 2, lint: true });
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
+  const rootTasks = parsed.tasks;
+
+  if (parsedQuery.command === 'SELECT') {
+    // Flatten tasks for query/sort
+    let flat = collectTasks(rootTasks);
+
+    // Apply ORDER BY
+    if (parsedQuery.orderBy) {
+      multiKeySort(flat, parsedQuery.orderBy);
+    }
+
+    let flatData = flat.map(n => ({
+      id: n.id,
+      parent: n.parent ?? null,
+      ...n.data
+    }));
+
+    // Apply WHERE filter
+    if (parsedQuery.where) {
+      flatData = flatData.filter(task => evaluateWhere(task, parsedQuery.where));
+    }
+
+    // Apply field selection
+    if (parsedQuery.fields && parsedQuery.fields[0] !== '*') {
+      flatData = flatData.map(task => {
+        const selected = { id: task.id, parent: task.parent };
+        parsedQuery.fields.forEach(field => {
+          if (task[field] !== undefined) selected[field] = task[field];
+        });
+        return selected;
+      });
+    }
+
+    if (parsedQuery.into) {
+      // Write to file, similar to before
+      const idToNode = new Map();
+      function mapNodes(nodes) {
+        for (const n of nodes) { idToNode.set(n.id, n); if (n.children) mapNodes(n.children); }
+      }
+      mapNodes(rootTasks);
+
+      const parentGroups = new Map();
+      for (const n of flat) {
+        const pid = n.parent ?? '__root';
+        if (!parentGroups.has(pid)) parentGroups.set(pid, []);
+        parentGroups.get(pid).push(n);
+      }
+
+      function buildTreeForParent(parentId) {
+        const arr = [];
+        const group = parentGroups.get(parentId) || [];
+        for (const entry of group) {
+          const node = idToNode.get(entry.id) || entry;
+          node.children = buildTreeForParent(node.id);
+          arr.push(node);
+        }
+        return arr;
+      }
+      const newRoot = buildTreeForParent('__root');
+
+      const outTaskLines = serializeTasksToLines(newRoot, { indentSize: 2 });
+      const targetPath = parsedQuery.into;
+      let targetLines = [];
+      if (fs.existsSync(file) && targetPath === file) targetLines = parsed.lines;
+      else if (fs.existsSync(targetPath)) targetLines = loadFileLines(targetPath);
+      else targetLines = loadFileLines(file);
+
+      const replaced = replaceTodoSection(targetLines, outTaskLines);
+      fs.writeFileSync(targetPath, replaced.join('\n'), 'utf8');
+      console.log(`Saved tasks into ${targetPath}`);
+      process.exit(0);
+    } else {
+      // Output to stdout
+      if (format === 'table') {
+        console.log(formatAsTable(flatData));
+      } else {
+        console.log(JSON.stringify(flatData, null, 2));
+      }
+      process.exit(0);
+    }
+  } else if (parsedQuery.command === 'UPDATE') {
+    // For UPDATE, modify tasks in memory and write back
+    let flat = collectTasks(rootTasks);
+    let updatedCount = 0;
+
+    flat.forEach(task => {
+      if (evaluateWhere(task, parsedQuery.where)) {
+        // Apply SET assignments
+        parsedQuery.set.forEach(assignment => {
+          task.data[assignment.key] = assignment.value.replace(/['"]/g, '');
+        });
+        updatedCount++;
+      }
+    });
+
+    // Write back to file
+    const idToNode = new Map();
+    function mapNodes(nodes) {
+      for (const n of nodes) { idToNode.set(n.id, n); if (n.children) mapNodes(n.children); }
+    }
+    mapNodes(rootTasks);
+
+    const outTaskLines = serializeTasksToLines(rootTasks, { indentSize: 2 });
+    const replaced = replaceTodoSection(parsed.lines, outTaskLines);
+    fs.writeFileSync(file, replaced.join('\n'), 'utf8');
+    console.log(`Updated ${updatedCount} tasks in ${file}`);
+    process.exit(0);
+  } else if (parsedQuery.command === 'DELETE') {
+    // For DELETE, remove tasks and write back
+    let flat = collectTasks(rootTasks);
+    const toDelete = new Set();
+
+    flat.forEach(task => {
+      if (evaluateWhere(task, parsedQuery.where)) {
+        toDelete.add(task.id);
+      }
+    });
+
+    // Remove from tree
+    function removeFromTree(nodes) {
+      return nodes.filter(node => {
+        if (toDelete.has(node.id)) return false;
+        if (node.children) node.children = removeFromTree(node.children);
+        return true;
+      });
+    }
+
+    const newRoot = removeFromTree(rootTasks);
+    const outTaskLines = serializeTasksToLines(newRoot, { indentSize: 2 });
+    const replaced = replaceTodoSection(parsed.lines, outTaskLines);
+    fs.writeFileSync(file, replaced.join('\n'), 'utf8');
+    console.log(`Deleted ${toDelete.size} tasks from ${file}`);
+    process.exit(0);
+  }
+}
+
+// Legacy select command for backward compatibility
 if (cmd === 'select') {
   const file = argv._[1];
   if (!file || !fs.existsSync(file)) { console.error('input file is required and must exist'); process.exit(1); }

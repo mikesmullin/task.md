@@ -3,8 +3,6 @@
 ## Overview
 `todo` is a human-friendly task management system using Markdown bullet lists as a **schemaless hierarchical database**. 
 
-Version Three adds support for **multi-line tasks** with YAML-style syntax for long descriptions and notes. The CLI provides **SQL-like queries**, ordering, and safe file writes under a `## TODO` heading.
-
 ## Core Features
 - Tasks stored as Markdown bullets; all non-bullet content ignored.
 - Hierarchical tasks using **indentation for subtasks**.
@@ -25,16 +23,15 @@ Version Three adds support for **multi-line tasks** with YAML-style syntax for l
 ## Task Syntax
 
 ### Single-Line Task Example
+
 ```
-
-* x A @Alice #game `Plan engine` due: 2025-10-05 weight: 10
-
+- x A @Alice #game `Plan engine` due: 2025-10-05 weight: 10
 ```
 
 ### Multi-Line Task Example
-```
 
-* x A @Alice #game
+```
+- x A @Alice #game
   title: `Plan "game engine" features`
   due: 2025-10-05
   weight: 10
@@ -53,31 +50,28 @@ Version Three adds support for **multi-line tasks** with YAML-style syntax for l
     description: |
     Design an entity-component-system suitable
     for the engine.
-
-````
+```
 
 ## CLI Commands
 
-### Select and Query
-```bash
-todo select <file> [orderby <key1 [asc|desc], key2 ...>]
-todo select <file> orderby <keys> into <output_file>
-````
-
-* Flattened queries; optionally sort by any key including `parent`.
-* Writing to file preserves hierarchy under `## TODO`.
-
-### Planned CRUD Commands
+### Query and Manipulate
 
 ```bash
-todo insert <file> key: value ...
-todo update <file> set key=value where id=<id>
-todo delete <file> where id=<id>
+todo query "SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [INTO <output>]"
+todo query "UPDATE <file> SET key = 'value' WHERE condition"
+todo query "DELETE FROM <file> WHERE condition"
 ```
 
-* `id` can be full or short hash prefix.
+* SQL-like syntax for querying and manipulating tasks
+* Supports field selection, filtering, sorting, and file output
+* Output formats: JSON (default) or table
+* Writing to file preserves hierarchy under `## TODO`
 
 ### Linter / Validator
+
+```bash
+todo lint <file>
+```
 
 * `todo lint <file>` validates syntax and hierarchy.
 * Rules:
@@ -108,10 +102,19 @@ todo delete <file> where id=<id>
 * Subtasks always indented under parent.
 * Calculated `parent` field **never written**.
 
-## Sorting / OrderBy
+## Query Syntax
 
-* Multiple keys allowed: `orderby priority desc, due asc, weight desc`
-* Parent field can be used to group subtasks.
+* **SELECT**: Query tasks with optional field selection, filtering, sorting, and output
+* **UPDATE**: Modify task fields based on conditions
+* **DELETE**: Remove tasks matching conditions
+* **WHERE**: Supports equality (`=`, `>`), boolean values, and string matching
+* **ORDER BY**: Multiple keys with ASC/DESC direction
+* **INTO**: Write results to a file while preserving hierarchy
+
+## Output Formats
+
+* **JSON** (default): Structured data for programmatic use
+* **Table**: Markdown table format for human-readable display
 
 ## VS Code / Editor Integration
 
@@ -125,4 +128,4 @@ todo delete <file> where id=<id>
 * Parser handles both single-line and multi-line tasks.
 * Flattened queries in memory; hierarchical output on file write.
 * Task serialization preserves indentation and multi-line blocks.
-* CLI commands: select, orderby, into, lint (full CRUD later).
+* CLI subcommands: query, lint, help.

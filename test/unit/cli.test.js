@@ -216,6 +216,128 @@ describe('CLI Integration', () => {
     });
   });
 
+  describe('query command', () => {
+    test('should execute SELECT * FROM file', async () => {
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture}`]);
+
+      expect(result.code).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const tasks = JSON.parse(result.stdout);
+      expect(Array.isArray(tasks)).toBe(true);
+      expect(tasks.length).toBeGreaterThan(0);
+    });
+
+    test('should execute SELECT with specific fields', async () => {
+      const result = await runCli(['query', `SELECT title, priority FROM ${todoFixture}`]);
+
+      expect(result.code).toBe(0);
+
+      const tasks = JSON.parse(result.stdout);
+      expect(Array.isArray(tasks)).toBe(true);
+      // Should have selected fields
+    });
+
+    test('should execute SELECT with WHERE clause', async () => {
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture} WHERE completed = true`]);
+
+      expect(result.code).toBe(0);
+
+      const tasks = JSON.parse(result.stdout);
+      expect(Array.isArray(tasks)).toBe(true);
+      // Assuming there are completed tasks
+    });
+
+    test('should execute SELECT with ORDER BY', async () => {
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture} ORDER BY priority DESC`]);
+
+      expect(result.code).toBe(0);
+
+      const tasks = JSON.parse(result.stdout);
+      expect(Array.isArray(tasks)).toBe(true);
+    });
+
+    test('should execute SELECT with INTO', async () => {
+      const outputFile = createTempFile('');
+      tempFiles.push(outputFile);
+
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture} INTO ${outputFile}`]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain(`Saved tasks into ${outputFile}`);
+
+      expect(fs.existsSync(outputFile)).toBe(true);
+      const outputContent = fs.readFileSync(outputFile, 'utf8');
+      expect(outputContent).toContain('## TODO');
+    });
+
+    test('should execute UPDATE', async () => {
+      const tempFile = createTempFile(fs.readFileSync(todoFixture, 'utf8'));
+      tempFiles.push(tempFile);
+
+      const result = await runCli(['query', `UPDATE ${tempFile} SET priority = 'A' WHERE id = 5c061fa0`]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Updated');
+    });
+
+    test('should execute DELETE', async () => {
+      const tempFile = createTempFile(fs.readFileSync(todoFixture, 'utf8'));
+      tempFiles.push(tempFile);
+
+      const result = await runCli(['query', `DELETE FROM ${tempFile} WHERE completed = true`]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Deleted');
+    });
+
+    test('should handle -q shorthand', async () => {
+      const result = await runCli(['-q', `SELECT * FROM ${todoFixture}`]);
+
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain('Usage:');
+    });
+
+    test('should support --format table', async () => {
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture}`, '--format', 'table']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('|'); // Table format
+    });
+
+    test('should support -o shorthand', async () => {
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture}`, '-o', 'table']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('|'); // Table format
+    });
+  });
+
+  describe('help command', () => {
+    test('should display help with help subcommand', async () => {
+      const result = await runCli(['help']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('NAME');
+      expect(result.stdout).toContain('SYNOPSIS');
+      expect(result.stdout).toContain('todo query');
+    });
+
+    test('should display help with --help', async () => {
+      const result = await runCli(['--help']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('NAME');
+    });
+
+    test('should display help with -h', async () => {
+      const result = await runCli(['-h']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('NAME');
+    });
+  });
+
   describe('error handling', () => {
     test('should show usage when no command provided', async () => {
       const result = await runCli([]);
