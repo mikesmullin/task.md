@@ -6,6 +6,7 @@ import { lintLines } from './linter.js';
 import { collectTasks, multiKeySort } from './utils.js';
 import { serializeTasksToLines } from './serializer.js';
 import { replaceTodoSection } from './fileSection.js';
+import { formatAsTable } from './tableFormatter.js';
 
 // Simple argument parser to replace minimist
 function parseArgs(args) {
@@ -61,17 +62,22 @@ DESCRIPTION
        Non-bullet content is preserved but ignored during task processing.
 
 COMMANDS
-       select <file> [orderby <keys>] [into <output>]
+       select <file> [orderby <keys>] [--format <format>] [into <output>]
               Query and optionally sort tasks from a Markdown file.
               
-              Without 'into', outputs tasks as JSON to stdout.
+              Without 'into', outputs tasks to stdout in the specified format.
               With 'into', writes sorted tasks back to the specified file
               while preserving the original file structure and hierarchy.
               
+              Format options:
+                json   - JSON output (default)
+                table  - Markdown table format
+              
               Examples:
                 todo select tasks.md
+                todo select tasks.md --format table
                 todo select tasks.md orderby priority desc
-                todo select tasks.md orderby priority asc, due desc
+                todo select tasks.md orderby priority asc, due desc --format table
                 todo select tasks.md orderby weight desc into sorted.md
 
        lint <file>
@@ -150,8 +156,14 @@ EXAMPLES
        List all tasks as JSON:
          todo select project.md
 
+       List all tasks as a table:
+         todo select project.md --format table
+
        Sort by priority then due date:
          todo select project.md orderby priority asc, due desc
+
+       Sort by priority and display as table:
+         todo select project.md orderby priority desc --format table
 
        Create a sorted version of the file:
          todo select project.md orderby weight desc into project-sorted.md
@@ -167,7 +179,7 @@ EXIT STATUS
 
 function printUsageAndExit() {
   console.log(`Usage:
-  todo select <file> [orderby <key [asc|desc], ...>] [into <output_file>]
+  todo select <file> [orderby <key [asc|desc], ...>] [--format <json|table>] [into <output_file>]
   todo lint <file>
   todo help
   
@@ -207,16 +219,25 @@ if (cmd === 'select') {
   const file = argv._[1];
   if (!file || !fs.existsSync(file)) { console.error('input file is required and must exist'); process.exit(1); }
 
-  // Parse orderby from arguments. Look for 'orderby' token
+  // Parse orderby and format from arguments. Look for 'orderby' token and --format flag
   const rawArgs = process.argv.slice(2);
   let orderby = null;
+  let format = 'json'; // default format
   let intoFile = null;
   for (let i = 0; i < rawArgs.length; i++) {
     if (rawArgs[i] === 'orderby') {
       orderby = rawArgs[i + 1]; i++;
+    } else if (rawArgs[i] === '--format') {
+      format = rawArgs[i + 1]; i++;
     } else if (rawArgs[i] === 'into') {
       intoFile = rawArgs[i + 1]; i++;
     }
+  }
+
+  // Validate format
+  if (!['json', 'table'].includes(format)) {
+    console.error(`Invalid format '${format}'. Supported formats: json, table`);
+    process.exit(1);
   }
 
   // Parse file -> throws on lint errors
@@ -291,12 +312,18 @@ if (cmd === 'select') {
     console.log(`Saved sorted tasks into ${targetPath}`);
     process.exit(0);
   } else {
-    // Print flattened JSON-ish view
-    console.log(JSON.stringify(flat.map(n => ({
+    // Print flattened data in specified format
+    const flatData = flat.map(n => ({
       id: n.id,
       parent: n.parent ?? null,
       ...n.data
-    })), null, 2));
+    }));
+
+    if (format === 'table') {
+      console.log(formatAsTable(flatData));
+    } else {
+      console.log(JSON.stringify(flatData, null, 2));
+    }
     process.exit(0);
   }
 }

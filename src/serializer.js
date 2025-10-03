@@ -26,7 +26,12 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
     if (node.data.skipped) prefixes.push('-');
     if (node.data.priority) prefixes.push(node.data.priority);
     if (node.data.stakeholder) prefixes.push('@' + node.data.stakeholder);
-    if (node.data.tags && node.data.tags.length) prefixes.push(...node.data.tags.map(t => '#' + t));
+    if (node.data.tags) {
+      if (Array.isArray(node.data.tags) && node.data.tags.length) {
+        prefixes.push(...node.data.tags.map(t => '#' + t));
+      }
+      // Note: if tags is a string from key:value parsing, it will be handled as regular key:value below
+    }
 
     if (!useMultiline) {
       // single-line
