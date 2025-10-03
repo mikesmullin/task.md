@@ -45,7 +45,7 @@
   Review team document.
   Ensure compatibility with existing tools.
 
-  * B #ecs
+  - B #ecs
     title: `Design ECS system`
     due: 2025-10-06
     description: |
