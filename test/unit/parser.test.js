@@ -35,7 +35,7 @@ describe('Parser', () => {
       const roadmapTask = tasks.find(t => t.data.title === 'Prepare roadmap');
       expect(roadmapTask).toBeDefined();
       expect(roadmapTask.data.priority).toBe('A');
-      expect(roadmapTask.data.stakeholder).toBe('Alice');
+      expect(roadmapTask.data.stakeholders).toEqual(['Alice']);
       expect(roadmapTask.data.tags).toContain('planning');
       expect(roadmapTask.data.due).toBe('2025-10-05');
       expect(roadmapTask.data.weight).toBe(10);
@@ -62,7 +62,7 @@ describe('Parser', () => {
       const gameEngineTask = tasks.find(t => t.data.title === 'Plan "game engine" features');
       expect(gameEngineTask).toBeDefined();
       expect(gameEngineTask.data.priority).toBe('A');
-      expect(gameEngineTask.data.stakeholder).toBe('Alice');
+      expect(gameEngineTask.data.stakeholders).toEqual(['Alice']);
       expect(gameEngineTask.data.tags).toContain('game');
       expect(gameEngineTask.data.description).toContain('Plan the architecture');
       expect(gameEngineTask.data.description).toContain('ECS system');

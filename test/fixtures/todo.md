@@ -7,7 +7,7 @@ This content should be ignored by the parser.
 # --- Single-Line Tasks ---
 
 - A @Alice #planning `Prepare roadmap` due: 2025-10-05 weight: 10
-- B #backend `Refactor auth service` effort: 5h
+- B @Alice @Bob #backend `Refactor auth service` effort: 5h
 - C `Unassigned title task with no prefixes`
 - x `Completed item using x macro only`
 - - `Skipped item with dash prefix`

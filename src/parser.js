@@ -145,7 +145,11 @@ function parseBulletLineInline(afterDash, node) {
     if (tok === '-' || tok === '[-]') { node.data.skipped = true; continue; }
     if (tok === '[_]') { node.data.completed = false; continue; }
     if (/^[A-D]$/.test(tok)) { node.data.priority = tok; continue; }
-    if (tok.startsWith('@')) { node.data.stakeholder = tok.slice(1); continue; }
+    if (tok.startsWith('@')) {
+      if (!node.data.stakeholders) node.data.stakeholders = [];
+      node.data.stakeholders.push(tok.slice(1));
+      continue;
+    }
     if (tok.startsWith('#')) {
       if (!node.data.tags) node.data.tags = [];
       node.data.tags.push(tok.slice(1));
@@ -231,12 +235,12 @@ function ensureIdOnNode(node) {
     node.id = String(node.data.id);
     return;
   }
-  // Compute deterministic id from identity fields: title,tags,priority,stakeholder,due
+  // Compute deterministic id from identity fields: title,tags,priority,stakeholders,due
   const identity = {
     title: node.data.title ?? '',
     tags: node.data.tags ?? [],
     priority: node.data.priority ?? null,
-    stakeholder: node.data.stakeholder ?? null,
+    stakeholders: node.data.stakeholders ?? [],
     due: node.data.due ?? null
   };
   const id = computeDeterministicId(identity);

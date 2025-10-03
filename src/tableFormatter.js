@@ -13,7 +13,7 @@ export function formatAsTable(tasks) {
   });
 
   // Sort keys to have a consistent column order, with common ones first
-  const commonKeys = ['id', 'parent', 'title', 'priority', 'stakeholder', 'completed', 'skipped', 'due', 'weight'];
+  const commonKeys = ['id', 'parent', 'title', 'priority', 'stakeholders', 'completed', 'skipped', 'due', 'weight'];
   const sortedKeys = [
     ...commonKeys.filter(key => allKeys.has(key)),
     ...Array.from(allKeys).filter(key => !commonKeys.includes(key)).sort()

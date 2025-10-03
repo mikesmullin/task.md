@@ -11,7 +11,7 @@
   - `[_]` → `completed: false` (optional, default when omitted)
   - `[-]` or `-` → `skipped: true`
   - `A-D` → priority (`A` highest, `D` lowest)
-  - `@Name` → `stakeholder: "Name"`
+  - `@Name` → adds to `stakeholders` array
   - `#tag` → adds to `tags` array
 - First quoted string on a task line automatically becomes `title` if `title:` key is missing.
 - Key-value pairs are schemaless, supporting **any arbitrary key** (e.g., `weight`, `effort`, `category`).
@@ -26,13 +26,13 @@
 ### Single-Line Task Example
 
 ```
-- [x] A @Alice #game `Plan engine` due: 2025-10-05 weight: 10
+- [x] A @Alice @Bob #game `Plan engine` due: 2025-10-05 weight: 10
 ```
 
 ### Multi-Line Task Example
 
 ```
-- [x] A @Alice #game
+- [x] A @Alice @Bob #game
   title: `Plan "game engine" features`
   due: 2025-10-05
   weight: 10
@@ -61,6 +61,12 @@
 todo query "SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [LIMIT n] [INTO <output>]"
 todo query "UPDATE <file> SET key = 'value' WHERE condition"
 todo query "DELETE FROM <file> WHERE condition"
+
+# Find all tasks assigned to Alice
+todo query "SELECT title, stakeholders FROM tasks.md WHERE stakeholders CONTAINS 'Alice'"
+
+# Find high-priority tasks with #rpc tag
+todo query "SELECT * FROM tasks.md WHERE priority = 'A' AND tags CONTAINS 'rpc'"
 ```
 
 * SQL-like syntax for querying and manipulating tasks
@@ -108,7 +114,7 @@ todo lint <file>
 * **SELECT**: Query tasks with optional field selection, filtering, sorting, limiting, and output
 * **UPDATE**: Modify task fields based on conditions
 * **DELETE**: Remove tasks matching conditions
-* **WHERE**: Supports equality (`=`, `>`), boolean values, and string matching
+* **WHERE**: Supports equality (`=`, `>`), boolean values, string matching, and `CONTAINS` for arrays/strings
 * **ORDER BY**: Multiple keys with ASC/DESC direction
 * **LIMIT**: Restrict the number of results returned
 * **INTO**: Write results to a file while preserving hierarchy

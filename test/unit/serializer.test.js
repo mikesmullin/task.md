@@ -10,7 +10,7 @@ describe('Serializer', () => {
             id: 'abc12345',
             title: 'Simple task',
             priority: 'A',
-            stakeholder: 'Alice',
+            stakeholders: ['Alice'],
             tags: ['test'],
             due: '2025-10-01'
           },
@@ -34,7 +34,7 @@ describe('Serializer', () => {
             id: 'def67890',
             title: 'Complex task',
             priority: 'B',
-            stakeholder: 'Bob',
+            stakeholders: ['Bob'],
             tags: ['complex'],
             description: 'This is a multi-line\ndescription with details',
             notes: 'Some additional\nnotes here'

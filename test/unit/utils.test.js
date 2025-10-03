@@ -14,7 +14,7 @@ describe('Utils', () => {
         title: 'Test Task',
         tags: ['test'],
         priority: 'A',
-        stakeholder: 'Alice',
+        stakeholders: ['Alice'],
         due: '2025-10-01'
       };
 
@@ -22,7 +22,7 @@ describe('Utils', () => {
         title: 'Test Task',
         tags: ['test'],
         priority: 'A',
-        stakeholder: 'Alice',
+        stakeholders: ['Alice'],
         due: '2025-10-01'
       };
 
@@ -39,7 +39,7 @@ describe('Utils', () => {
         title: 'Task One',
         tags: ['test'],
         priority: 'A',
-        stakeholder: 'Alice',
+        stakeholders: ['Alice'],
         due: '2025-10-01'
       };
 
@@ -47,7 +47,7 @@ describe('Utils', () => {
         title: 'Task Two',
         tags: ['test'],
         priority: 'A',
-        stakeholder: 'Alice',
+        stakeholders: ['Alice'],
         due: '2025-10-01'
       };
 
@@ -62,7 +62,7 @@ describe('Utils', () => {
         title: '',
         tags: [],
         priority: null,
-        stakeholder: null,
+        stakeholders: [],
         due: null
       };
 
@@ -72,7 +72,7 @@ describe('Utils', () => {
     });
 
     test('should respect custom length parameter', () => {
-      const identity = { title: 'Test', tags: [], priority: null, stakeholder: null, due: null };
+      const identity = { title: 'Test', tags: [], priority: null, stakeholders: [], due: null };
       const id = computeDeterministicId(identity, 12);
       expect(id.length).toBe(12);
     });

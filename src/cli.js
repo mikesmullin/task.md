@@ -157,6 +157,13 @@ function evaluateWhere(task, whereTokens) {
       return taskValue > compareValue;
     } else if (op === '<') {
       return taskValue < compareValue;
+    } else if (op === 'CONTAINS') {
+      if (Array.isArray(taskValue)) {
+        return taskValue.includes(compareValue);
+      } else if (typeof taskValue === 'string') {
+        return taskValue.includes(compareValue);
+      }
+      return false;
     }
   }
   return true;
@@ -275,7 +282,7 @@ TASK SYNTAX
          [_]              - completed: false (optional)
          [-] or -         - skipped: true  
          A-D              - priority (A=highest, D=lowest)
-         @Name            - stakeholder: "Name"
+         @Name            - adds to stakeholders array
          #tag             - adds to tags array
 
        Key-value pairs:

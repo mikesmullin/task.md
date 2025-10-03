@@ -11,7 +11,7 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
     // We'll choose multi-line format if node.inline is missing or node.data has multi-line fields or keys that are not inline-representable.
     const multiLineKeys = Object.keys(node.data).filter(k => {
       if (k === 'title' && node.inline && node.inline.includes('`')) return false;
-      if (k === 'id' || k === 'tags' || k === 'completed' || k === 'skipped' || k === 'priority' || k === 'stakeholder') {
+      if (k === 'id' || k === 'tags' || k === 'completed' || k === 'skipped' || k === 'priority' || k === 'stakeholders') {
         // small keys we can include inline if desired; but to simplify, allow inline if node.inline exists
       }
       const v = node.data[k];
@@ -26,13 +26,18 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
     if (node.data.completed === false) prefixes.push('[_]');
     if (node.data.skipped) prefixes.push('[-]');
     if (node.data.priority) prefixes.push(node.data.priority);
-    if (node.data.stakeholder) prefixes.push('@' + node.data.stakeholder);
+    if (node.data.stakeholders) {
+      if (Array.isArray(node.data.stakeholders) && node.data.stakeholders.length) {
+        prefixes.push(...node.data.stakeholders.map(s => '@' + s));
+      }
+    }
     if (node.data.tags) {
       if (Array.isArray(node.data.tags) && node.data.tags.length) {
         prefixes.push(...node.data.tags.map(t => '#' + t));
       }
       // Note: if tags is a string from key:value parsing, it will be handled as regular key:value below
     }
+    if (node.data.stakeholder) prefixes.push('@' + node.data.stakeholder);
 
     if (!useMultiline) {
       // single-line
@@ -47,7 +52,7 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
       }
       // include other inline key: value pairs excluding known prefix fields
       for (const [k, v] of Object.entries(node.data)) {
-        if (['completed', 'skipped', 'priority', 'stakeholder', 'tags', 'title', 'id'].includes(k)) continue;
+        if (['completed', 'skipped', 'priority', 'stakeholders', 'tags', 'title', 'id'].includes(k)) continue;
         // skip multi-line values (none expected here)
         if (typeof v === 'string' && v.includes('\n')) continue;
         const sval = typeof v === 'string' && /\s/.test(v) ? `"${v}"` : String(v);
@@ -73,6 +78,11 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
         if (k === 'tags' && Array.isArray(v) && v.length) {
           // emit tags as repeated #tag prefix style? Simpler: emit tags: "a,b"
           lines.push(indent + ' '.repeat(options.indentSize) + `tags: "${v.join(',')}"`);
+          continue;
+        }
+        if (k === 'stakeholders' && Array.isArray(v) && v.length) {
+          // emit stakeholders as stakeholders: "a,b"
+          lines.push(indent + ' '.repeat(options.indentSize) + `stakeholders: "${v.join(',')}"`);
           continue;
         }
         if (k === 'id') continue; // we'll emit id at end
