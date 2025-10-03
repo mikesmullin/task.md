@@ -1,11 +1,7 @@
 # Node modules (except production dependencies)
-node_modules/**
-!node_modules/vscode-languageclient/**
-!node_modules/vscode-languageserver/**
-!node_modules/vscode-languageserver-protocol/**
-!node_modules/vscode-languageserver-textdocument/**
-!node_modules/vscode-languageserver-types/**
-!node_modules/vscode-jsonrpc/**
+# We keep all node_modules except devDependencies
+# This ensures all transitive dependencies are included
+# If you want to reduce size, use bundling with webpack/esbuild instead
 
 # Development files
 .vscode/**
