@@ -4,6 +4,10 @@
   "description": "Language support for *.task.md files with real-time linting",
   "version": "1.0.1",
   "publisher": "todo-cli",
+  "repository": {
+    "type": "https",
+    "url": "https://github.com/mikesmullin/task.md.git"
+  },
   "license": "MIT",
   "engines": {
     "vscode": "^1.74.0"
