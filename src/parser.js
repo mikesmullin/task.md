@@ -141,8 +141,9 @@ function parseBulletLineInline(afterDash, node) {
       continue;
     }
     // handle prefixes
-    if (tok === 'x') { node.data.completed = true; continue; }
-    if (tok === '-') { node.data.skipped = true; continue; }
+    if (tok === 'x' || tok === '[x]') { node.data.completed = true; continue; }
+    if (tok === '-' || tok === '[-]') { node.data.skipped = true; continue; }
+    if (tok === '[_]') { node.data.completed = false; continue; }
     if (/^[A-D]$/.test(tok)) { node.data.priority = tok; continue; }
     if (tok.startsWith('@')) { node.data.stakeholder = tok.slice(1); continue; }
     if (tok.startsWith('#')) {

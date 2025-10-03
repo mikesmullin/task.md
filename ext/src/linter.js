@@ -62,7 +62,7 @@ const ERROR_INFO = {
     helpUrl: 'https://github.com/mikesmullin/task.md#tags'
   },
   [ERROR_CODES.MISPLACED_PRIORITY]: {
-    description: 'Priority shorthand (A-D, x, -) must appear at the beginning of task prefix',
+    description: 'Priority shorthand (A-D, x, -, [x], [_], [-]) must appear at the beginning of task prefix',
     helpUrl: 'https://github.com/mikesmullin/task.md#priorities'
   },
   [ERROR_CODES.UNQUOTED_TITLE_WITH_KV]: {
@@ -292,7 +292,7 @@ function lintLines(lines, opts = { indentSize: 2 }) {
         pushError(lineNo, '@assignee tags are only allowed at beginning task prefix', token.start, token.end, ERROR_CODES.MISPLACED_ASSIGNEE);
       } else if (token.text.startsWith('#')) {
         pushError(lineNo, '#tags are only allowed at beginning task prefix', token.start, token.end, ERROR_CODES.MISPLACED_TAG);
-      } else if (/^[A-Dx\-]$/.test(token.text)) {
+      } else if (/^[A-Dx\-]$|^\[x\]$|^\[_\]$|^\[-\]$/.test(token.text)) {
         // Only flag single-letter priority tokens that are clearly misplaced
         // Don't flag them if they appear as values in key:value pairs
         const prevToken = i > 0 ? tokens[i - 1] : null;

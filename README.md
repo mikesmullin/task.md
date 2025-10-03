@@ -7,8 +7,9 @@
 - Tasks stored as Markdown bullets; all non-bullet content ignored.
 - Hierarchical tasks using **indentation for subtasks**.
 - Prefix macros at the start of a task line:
-  - `x` → `completed: true`
-  - `-` → `skipped: true`
+  - `[x]` or `x` → `completed: true`
+  - `[_]` → `completed: false` (optional, default when omitted)
+  - `[-]` or `-` → `skipped: true`
   - `A-D` → priority (`A` highest, `D` lowest)
   - `@Name` → `stakeholder: "Name"`
   - `#tag` → adds to `tags` array
@@ -25,13 +26,13 @@
 ### Single-Line Task Example
 
 ```
-- x A @Alice #game `Plan engine` due: 2025-10-05 weight: 10
+- [x] A @Alice #game `Plan engine` due: 2025-10-05 weight: 10
 ```
 
 ### Multi-Line Task Example
 
 ```
-- x A @Alice #game
+- [x] A @Alice #game
   title: `Plan "game engine" features`
   due: 2025-10-05
   weight: 10
@@ -64,7 +65,7 @@ todo query "DELETE FROM <file> WHERE condition"
 
 * SQL-like syntax for querying and manipulating tasks
 * Supports field selection, filtering, sorting, limiting results, and file output
-* Output formats: JSON (default) or table
+* Output formats: table (default) or JSON
 * Writing to file preserves hierarchy under `## TODO`
 
 ### Linter / Validator
@@ -114,8 +115,8 @@ todo lint <file>
 
 ## Output Formats
 
-* **JSON** (default): Structured data for programmatic use
-* **Table**: Markdown table format for human-readable display
+* **Table** (default): Markdown table format for human-readable display
+* **JSON**: Structured data for programmatic use
 
 ## VS Code / Editor Integration
 

@@ -22,8 +22,9 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
 
     // Build prefix tokens
     const prefixes = [];
-    if (node.data.completed) prefixes.push('x');
-    if (node.data.skipped) prefixes.push('-');
+    if (node.data.completed === true) prefixes.push('[x]');
+    if (node.data.completed === false) prefixes.push('[_]');
+    if (node.data.skipped) prefixes.push('[-]');
     if (node.data.priority) prefixes.push(node.data.priority);
     if (node.data.stakeholder) prefixes.push('@' + node.data.stakeholder);
     if (node.data.tags) {

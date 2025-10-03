@@ -134,8 +134,8 @@ describe('Serializer', () => {
       expect(lines.length).toBeGreaterThan(2);
 
       // Find lines containing the prefixes
-      const xLine = lines.find(l => l.includes('- x'));
-      const dashLine = lines.find(l => l.includes('- -'));
+      const xLine = lines.find(l => l.includes('- [x]'));
+      const dashLine = lines.find(l => l.includes('- [-]'));
 
       expect(xLine).toBeDefined();
       expect(dashLine).toBeDefined();

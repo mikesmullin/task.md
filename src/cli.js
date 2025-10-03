@@ -225,8 +225,8 @@ COMMANDS
                 DELETE FROM <file> WHERE condition
               
               Format options:
-                json   - JSON output (default)
-                table  - Markdown table format
+                table  - Markdown table format (default)
+                json   - JSON output
               
               Examples:
                 todo query "SELECT * FROM tasks.md"
@@ -257,10 +257,10 @@ COMMANDS
 
 TASK SYNTAX
        Single-line task:
-         - A @Alice #urgent "Fix authentication bug" due: 2025-10-01 weight: 10
+         - [x] A @Alice #urgent "Fix authentication bug" due: 2025-10-01 weight: 10
 
        Multi-line task:
-         - A @Alice #urgent
+         - [x] A @Alice #urgent
            title: "Fix authentication bug"  
            due: 2025-10-01
            weight: 10
@@ -271,11 +271,12 @@ TASK SYNTAX
              Check with security team before deploying.
 
        Prefix macros (at start of task line):
-         x         - completed: true
-         -         - skipped: true  
-         A-D       - priority (A=highest, D=lowest)
-         @Name     - stakeholder: "Name"
-         #tag      - adds to tags array
+         [x] or x         - completed: true
+         [_]              - completed: false (optional)
+         [-] or -         - skipped: true  
+         A-D              - priority (A=highest, D=lowest)
+         @Name            - stakeholder: "Name"
+         #tag             - adds to tags array
 
        Key-value pairs:
          key: value              - Simple scalar value
@@ -398,7 +399,7 @@ if (cmd === 'query') {
     process.exit(1);
   }
 
-  const format = argv.format || argv.o || 'json';
+  const format = argv.format || argv.o || 'table';
   if (!['json', 'table'].includes(format)) {
     console.error(`Invalid format '${format}'. Supported formats: json, table`);
     process.exit(1);
