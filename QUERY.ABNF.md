@@ -1,6 +1,6 @@
 # Query Syntax ABNF Specification
 
-This document defines the **Augmented Backus–Naur Form (ABNF)** grammar for the SQL-like query syntax used in the `todo` CLI tool.
+This document defines the **Augmented Backus–Naur Form (ABNF)** grammar for the SQL-like query syntax used in the `todo` CLI tool, following [RFC 5234](https://tools.ietf.org/html/rfc5234).
 
 ## Overview
 

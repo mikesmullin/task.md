@@ -41,8 +41,9 @@ inline-kv-section = *(SP key-value-pair)
 prefix-token = (priority-token / completion-token / skip-token / stakeholder-token / tag-token) [SP]
 
 priority-token = "A" / "B" / "C" / "D"
-completion-token = "x"
-skip-token = "-"
+completion-token = "x" / "[x]"
+skip-token = "-" / "[-]"
+incomplete-token = "[_]"
 stakeholder-token = "@" identifier
 tag-token = "#" identifier
 
@@ -111,8 +112,8 @@ Beyond the syntactic grammar, the following semantic rules apply:
 ### 1. Prefix Token Ordering
 Prefix tokens must appear in this order when multiple are present:
 1. Priority (`A`, `B`, `C`, `D`)
-2. Completion/Skip (`x`, `-`) 
-3. Stakeholder (`@name`)
+2. Completion/Skip (`[x]`, `x`, `[-]`, `-`, `[_]`) 
+3. Stakeholders (`@name1`, `@name2`, ...)
 4. Tags (`#tag1`, `#tag2`, ...)
 
 ### 2. Title Resolution
@@ -135,26 +136,41 @@ Prefix tokens must appear in this order when multiple are present:
 ### 5. Special Value Processing
 - Empty values are allowed: `key:`
 - Boolean interpretation: `completed: true`, `skipped: true` for prefix macros
+- Checkbox syntax: `[x]` for completed, `[-]` for skipped, `[_]` for incomplete (optional)
+- Single-char aliases: `x` and `-` still supported for backward compatibility
 - Arrays: Multiple `#tag` prefixes create a `tags` array
+- Arrays: Multiple `@name` prefixes create a `stakeholders` array
 - Custom fields: Any key not in the standard set is preserved as-is
 
 ## Examples
 
 ### Simple Task
 ```
-- A @Alice #urgent "Fix login bug" due: 2025-10-01
+- A @Alice @Bob #urgent "Fix login bug" due: 2025-10-01
 ```
 
 **Parsed as:**
 - Priority: A
-- Stakeholder: Alice  
+- Stakeholders: ["Alice", "Bob"]
 - Tags: ["urgent"]
 - Title: "Fix login bug"
 - Due: 2025-10-01
 
+### Checkbox Syntax Task
+```
+- [x] B @Carol #finance "Close Q4 budgets"
+```
+
+**Parsed as:**
+- Completed: true
+- Priority: B
+- Stakeholders: ["Carol"]
+- Tags: ["finance"]
+- Title: "Close Q4 budgets"
+
 ### Multi-line Task
 ```
-- B @Bob #backend
+- B @Bob @Dave #backend
   title: "Refactor authentication system"
   description: |
     Complete rewrite of the auth module:
@@ -163,6 +179,14 @@ Prefix tokens must appear in this order when multiple are present:
     - Add session management
   effort: 5d
 ```
+
+**Parsed as:**
+- Priority: B
+- Stakeholders: ["Bob", "Dave"]
+- Tags: ["backend"]
+- Title: "Refactor authentication system"
+- Description: (multi-line content)
+- Effort: 5d
 
 ### Task Hierarchy
 ```
@@ -190,7 +214,3 @@ The following conditions are considered syntax errors:
 - The syntax is **schemaless** - any key-value pairs are allowed
 - **Markdown compatibility** is maintained - tasks exist within standard Markdown bullet lists
 - **Whitespace sensitivity** applies to indentation but not to spacing around operators
-
----
-
-*This specification covers version 3.x of the task syntax as implemented in the `todo` CLI tool.*
