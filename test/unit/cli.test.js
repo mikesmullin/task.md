@@ -257,6 +257,26 @@ describe('CLI Integration', () => {
       expect(Array.isArray(tasks)).toBe(true);
     });
 
+    test('should execute SELECT with LIMIT', async () => {
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture} LIMIT 2`]);
+
+      expect(result.code).toBe(0);
+
+      const tasks = JSON.parse(result.stdout);
+      expect(Array.isArray(tasks)).toBe(true);
+      expect(tasks.length).toBe(2);
+    });
+
+    test('should execute SELECT with ORDER BY and LIMIT', async () => {
+      const result = await runCli(['query', `SELECT * FROM ${todoFixture} ORDER BY priority DESC LIMIT 3`]);
+
+      expect(result.code).toBe(0);
+
+      const tasks = JSON.parse(result.stdout);
+      expect(Array.isArray(tasks)).toBe(true);
+      expect(tasks.length).toBe(3);
+    });
+
     test('should execute SELECT with INTO', async () => {
       const outputFile = createTempFile('');
       tempFiles.push(outputFile);

@@ -75,7 +75,7 @@ function parseQuery(query) {
       expect('ORDER');
       expect('BY');
       result.orderBy = [];
-      while (peek() && peek().toUpperCase() !== 'INTO') {
+      while (peek() && peek().toUpperCase() !== 'LIMIT' && peek().toUpperCase() !== 'INTO') {
         const key = consume();
         let dir = 'asc';
         if (peek() && (peek().toUpperCase() === 'ASC' || peek().toUpperCase() === 'DESC')) {
@@ -84,6 +84,11 @@ function parseQuery(query) {
         result.orderBy.push({ key, dir });
         if (peek() === ',') consume();
       }
+    }
+    if (peek() && peek().toUpperCase() === 'LIMIT') {
+      expect('LIMIT');
+      result.limit = parseInt(consume());
+      if (isNaN(result.limit)) throw new Error('LIMIT must be a number');
     }
     if (peek() && peek().toUpperCase() === 'INTO') {
       expect('INTO');
@@ -215,7 +220,7 @@ COMMANDS
               Execute a SQL-like query on a Markdown task file.
               
               Supported queries:
-                SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [INTO <output>]
+                SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [LIMIT n] [INTO <output>]
                 UPDATE <file> SET assignments WHERE condition
                 DELETE FROM <file> WHERE condition
               
@@ -227,6 +232,7 @@ COMMANDS
                 todo query "SELECT * FROM tasks.md"
                 todo query "SELECT title, priority FROM tasks.md WHERE completed = false"
                 todo query "SELECT * FROM tasks.md ORDER BY priority DESC"
+                todo query "SELECT * FROM tasks.md ORDER BY priority ASC, due DESC LIMIT 5"
                 todo query "SELECT * FROM tasks.md ORDER BY priority ASC, due DESC INTO sorted.md"
                 todo query "UPDATE tasks.md SET priority = 'A' WHERE id = 1"
                 todo query "DELETE FROM tasks.md WHERE completed = true"
@@ -432,6 +438,11 @@ if (cmd === 'query') {
     // Apply WHERE filter
     if (parsedQuery.where) {
       flatData = flatData.filter(task => evaluateWhere(task, parsedQuery.where));
+    }
+
+    // Apply LIMIT
+    if (parsedQuery.limit) {
+      flatData = flatData.slice(0, parsedQuery.limit);
     }
 
     // Apply field selection

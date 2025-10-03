@@ -57,13 +57,13 @@
 ### Query and Manipulate
 
 ```bash
-todo query "SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [INTO <output>]"
+todo query "SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [LIMIT n] [INTO <output>]"
 todo query "UPDATE <file> SET key = 'value' WHERE condition"
 todo query "DELETE FROM <file> WHERE condition"
 ```
 
 * SQL-like syntax for querying and manipulating tasks
-* Supports field selection, filtering, sorting, and file output
+* Supports field selection, filtering, sorting, limiting results, and file output
 * Output formats: JSON (default) or table
 * Writing to file preserves hierarchy under `## TODO`
 
@@ -104,11 +104,12 @@ todo lint <file>
 
 ## Query Syntax
 
-* **SELECT**: Query tasks with optional field selection, filtering, sorting, and output
+* **SELECT**: Query tasks with optional field selection, filtering, sorting, limiting, and output
 * **UPDATE**: Modify task fields based on conditions
 * **DELETE**: Remove tasks matching conditions
 * **WHERE**: Supports equality (`=`, `>`), boolean values, and string matching
 * **ORDER BY**: Multiple keys with ASC/DESC direction
+* **LIMIT**: Restrict the number of results returned
 * **INTO**: Write results to a file while preserving hierarchy
 
 ## Output Formats
