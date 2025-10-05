@@ -99,20 +99,9 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
       if (node.data.id) firstParts.push(`id: ${node.data.id}`);
       lines.push(indent + '- ' + firstParts.join(' '));
 
-      // Emit other fields (except children)
+      // Emit other fields (except children and fields already in prefix)
       for (const [k, v] of Object.entries(node.data)) {
-        if (['title', 'id'].includes(k)) continue;
-        if (k === 'tags' && Array.isArray(v) && v.length) {
-          // emit tags as repeated #tag prefix style? Simpler: emit tags: "a,b"
-          lines.push(indent + ' '.repeat(options.indentSize) + `tags: "${v.join(',')}"`);
-          continue;
-        }
-        if (k === 'stakeholders' && Array.isArray(v) && v.length) {
-          // emit stakeholders as stakeholders: "a,b"
-          lines.push(indent + ' '.repeat(options.indentSize) + `stakeholders: "${v.join(',')}"`);
-          continue;
-        }
-        if (k === 'stakeholder') continue; // handled as prefix
+        if (['completed', 'skipped', 'priority', 'stakeholders', 'stakeholder', 'tags', 'title', 'id'].includes(k)) continue;
         if (typeof v === 'string' && (v.includes('\n') || v.length > 25)) {
           // Use pipe format for long strings and wrap at 80 chars
           lines.push(indent + ' '.repeat(options.indentSize) + `${k}: |`);
