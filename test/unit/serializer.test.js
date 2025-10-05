@@ -46,13 +46,11 @@ describe('Serializer', () => {
       const lines = serializeTasksToLines(tasks, { indentSize: 2 });
       expect(lines.length).toBeGreaterThan(5);
 
-      // Check header line
-      expect(lines[0]).toBe('- B @Bob #complex');
+      // Check header line with inline title and id
+      expect(lines[0]).toBe('- B @Bob #complex "Complex task" id: def67890');
 
-      // Check title line
-      const titleLine = lines.find(l => l.includes('title:'));
-      expect(titleLine).toBeDefined();
-      expect(titleLine).toContain('"Complex task"');
+      // Check that title is on first line, not as separate title: line
+      expect(lines[0]).toContain('"Complex task"');
 
       // Check multi-line description
       const descLine = lines.find(l => l.includes('description: |'));
@@ -61,9 +59,8 @@ describe('Serializer', () => {
       expect(lines[descIndex + 1]).toContain('This is a multi-line');
       expect(lines[descIndex + 2]).toContain('description with details');
 
-      // Check ID at end
-      const idLine = lines.find(l => l.includes('id: def67890'));
-      expect(idLine).toBeDefined();
+      // Check ID is on first line, not as separate id: line
+      expect(lines[0]).toContain('id: def67890');
     });
 
     test('should serialize nested tasks with proper indentation', () => {
@@ -335,12 +332,21 @@ describe('Serializer', () => {
 
       const lines = serializeTasksToLines(tasks, { indentSize: 2 });
 
-      const titleLines = lines.filter(l => l.includes('title:'));
-      expect(titleLines[0]).toContain('First task');
-      expect(titleLines[1]).toContain('Second task');
-      expect(titleLines[2]).toContain('Second child 1');
-      expect(titleLines[3]).toContain('Second child 2');
-      expect(titleLines[4]).toContain('Third task');
+      // Since all tasks have short titles and no long fields, they should be single-line
+      const firstTaskLine = lines.find(l => l.includes('First task'));
+      expect(firstTaskLine).toContain('First task');
+
+      const secondTaskLine = lines.find(l => l.includes('Second task'));
+      expect(secondTaskLine).toContain('Second task');
+
+      const secondChild1Line = lines.find(l => l.includes('Second child 1'));
+      expect(secondChild1Line).toContain('Second child 1');
+
+      const secondChild2Line = lines.find(l => l.includes('Second child 2'));
+      expect(secondChild2Line).toContain('Second child 2');
+
+      const thirdTaskLine = lines.find(l => l.includes('Third task'));
+      expect(thirdTaskLine).toContain('Third task');
     });
   });
 });

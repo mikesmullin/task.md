@@ -2,23 +2,47 @@
 // Serialize the in-memory node tree back to Markdown bullets and ensure ID placement.
 // When writing single-line tasks we append id at end of inline; for multi-line, emit id: <id> as last key.
 
+// Helper function to wrap text at specified column width
+function wrapText(text, maxWidth) {
+  // First split by existing newlines, then wrap each line
+  const existingLines = text.split('\n');
+  const wrappedLines = [];
+
+  for (const line of existingLines) {
+    if (line.length <= maxWidth) {
+      wrappedLines.push(line);
+    } else {
+      const words = line.split(/\s+/);
+      let currentLine = '';
+
+      for (const word of words) {
+        if (currentLine.length + word.length + 1 <= maxWidth) {
+          currentLine += (currentLine ? ' ' : '') + word;
+        } else {
+          if (currentLine) wrappedLines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      if (currentLine) wrappedLines.push(currentLine);
+    }
+  }
+
+  return wrappedLines;
+}
+
 export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
   const lines = [];
 
   function writeNode(node, level) {
     const indent = ' '.repeat(level * options.indentSize);
-    // Determine if node originally had multi-line keys (node.data keys other than "inline" or simple single-line)
-    // We'll choose multi-line format if node.inline is missing or node.data has multi-line fields or keys that are not inline-representable.
-    const multiLineKeys = Object.keys(node.data).filter(k => {
-      if (k === 'title' && node.inline && node.inline.includes('`')) return false;
-      if (k === 'id' || k === 'tags' || k === 'completed' || k === 'skipped' || k === 'priority' || k === 'stakeholders') {
-        // small keys we can include inline if desired; but to simplify, allow inline if node.inline exists
-      }
+    // Determine if node should use multi-line format
+    // Check for long values (>25 chars) excluding title, or existing multi-line content
+    const hasLongValues = Object.keys(node.data).some(k => {
+      if (k === 'title' || k === 'id' || k === 'tags' || k === 'completed' || k === 'skipped' || k === 'priority' || k === 'stakeholders' || k === 'stakeholder') return false;
       const v = node.data[k];
-      if (typeof v === 'string' && v.includes('\n')) return true;
-      return false;
+      return typeof v === 'string' && (v.includes('\n') || v.length > 25);
     });
-    const useMultiline = multiLineKeys.length > 0 || !node.inline;
+    const useMultiline = hasLongValues || !node.inline;
 
     // Build prefix tokens
     const prefixes = [];
@@ -50,11 +74,11 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
         const q = title.includes('"') ? '`' : '"';
         parts.push(`${q}${title}${q}`);
       }
-      // include other inline key: value pairs excluding known prefix fields
+      // include other inline key: value pairs excluding known prefix fields and long values
       for (const [k, v] of Object.entries(node.data)) {
         if (['completed', 'skipped', 'priority', 'stakeholders', 'stakeholder', 'tags', 'title', 'id'].includes(k)) continue;
-        // skip multi-line values (none expected here)
-        if (typeof v === 'string' && v.includes('\n')) continue;
+        // skip multi-line values and long values (>25 chars)
+        if (typeof v === 'string' && (v.includes('\n') || v.length > 25)) continue;
         const sval = typeof v === 'string' && /\s/.test(v) ? `"${v}"` : String(v);
         parts.push(`${k}: ${sval}`);
       }
@@ -65,16 +89,19 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
       // multiline block
       const firstParts = [];
       if (prefixes.length) firstParts.push(...prefixes);
-      lines.push(indent + '- ' + firstParts.join(' '));
-      // Title: prefer explicit title key; we always emit title if present
+      // Include title inline if present
       if (node.data.title) {
         const title = node.data.title;
         const q = title.includes('"') ? '`' : '"';
-        lines.push(indent + ' '.repeat(options.indentSize) + `title: ${q}${title}${q}`);
+        firstParts.push(`${q}${title}${q}`);
       }
+      // Include id inline if present
+      if (node.data.id) firstParts.push(`id: ${node.data.id}`);
+      lines.push(indent + '- ' + firstParts.join(' '));
+
       // Emit other fields (except children)
       for (const [k, v] of Object.entries(node.data)) {
-        if (['title'].includes(k)) continue;
+        if (['title', 'id'].includes(k)) continue;
         if (k === 'tags' && Array.isArray(v) && v.length) {
           // emit tags as repeated #tag prefix style? Simpler: emit tags: "a,b"
           lines.push(indent + ' '.repeat(options.indentSize) + `tags: "${v.join(',')}"`);
@@ -85,22 +112,19 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
           lines.push(indent + ' '.repeat(options.indentSize) + `stakeholders: "${v.join(',')}"`);
           continue;
         }
-        if (k === 'id') continue; // we'll emit id at end
-        if (typeof v === 'string' && v.includes('\n')) {
+        if (k === 'stakeholder') continue; // handled as prefix
+        if (typeof v === 'string' && (v.includes('\n') || v.length > 25)) {
+          // Use pipe format for long strings and wrap at 80 chars
           lines.push(indent + ' '.repeat(options.indentSize) + `${k}: |`);
-          const blockLines = v.split('\n');
-          for (const bl of blockLines) {
-            lines.push(indent + ' '.repeat(options.indentSize * 2) + bl);
+          const wrappedLines = wrapText(v, 80);
+          for (const line of wrappedLines) {
+            lines.push(indent + ' '.repeat(options.indentSize * 2) + line);
           }
         } else {
           // simple scalar
           const sval = typeof v === 'string' && /\s/.test(v) ? `"${v}"` : String(v);
           lines.push(indent + ' '.repeat(options.indentSize) + `${k}: ${sval}`);
         }
-      }
-      // Emit id as last key line
-      if (node.data.id) {
-        lines.push(indent + ' '.repeat(options.indentSize) + `id: ${node.data.id}`);
       }
     }
 

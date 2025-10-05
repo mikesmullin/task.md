@@ -175,7 +175,7 @@ function parseBulletLineInline(afterDash, node) {
     const k = m[1];
     const vtoken = m[2];
     const value = parseValueToken(vtoken);
-    
+
     // Convert comma-separated strings to arrays for specific fields
     if ((k === 'tags' || k === 'stakeholders') && typeof value === 'string') {
       node.data[k] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
