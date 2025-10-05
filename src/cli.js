@@ -657,7 +657,12 @@ if (cmd === 'query') {
             // Convert comma-separated string to array
             task.data[assignment.key] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
           } else {
-            task.data[assignment.key] = value;
+            // Convert boolean strings to actual booleans
+            let convertedValue = value;
+            if (value === 'true') convertedValue = true;
+            else if (value === 'false') convertedValue = false;
+            else if (!isNaN(value) && value !== '') convertedValue = Number(value);
+            task.data[assignment.key] = convertedValue;
           }
         });
         updatedCount++;
@@ -740,7 +745,12 @@ if (cmd === 'query') {
 
         newNode.data[assignment.key] = items;
       } else {
-        newNode.data[assignment.key] = value;
+        // Convert boolean strings to actual booleans
+        let convertedValue = value;
+        if (value === 'true') convertedValue = true;
+        else if (value === 'false') convertedValue = false;
+        else if (!isNaN(value) && value !== '') convertedValue = Number(value);
+        newNode.data[assignment.key] = convertedValue;
       }
     });
 
