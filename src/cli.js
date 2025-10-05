@@ -208,6 +208,30 @@ function parseQuery(query) {
 // Simple WHERE evaluator
 function evaluateWhere(task, whereTokens) {
   if (!whereTokens || whereTokens.length === 0) return true;
+
+  // Handle IS NULL and IS NOT NULL operators
+  if (whereTokens.length >= 3 && whereTokens[1].toUpperCase() === 'IS') {
+    const key = whereTokens[0];
+    let taskValue = task[key];
+    if (taskValue === undefined && task.data) taskValue = task.data[key];
+    // Special handling for boolean fields
+    if ((key === 'completed' || key === 'skipped') && taskValue === undefined) {
+      taskValue = false;
+    }
+
+    if (whereTokens[2].toUpperCase() === 'NULL') {
+      // IS NULL: true if value is null, undefined, or false for boolean fields
+      return taskValue === null || taskValue === undefined ||
+        ((key === 'completed' || key === 'skipped') && taskValue === false);
+    } else if (whereTokens.length >= 4 &&
+      whereTokens[2].toUpperCase() === 'NOT' &&
+      whereTokens[3].toUpperCase() === 'NULL') {
+      // IS NOT NULL: true if value exists and is not false for boolean fields
+      return taskValue !== null && taskValue !== undefined &&
+        !((key === 'completed' || key === 'skipped') && taskValue === false);
+    }
+  }
+
   // Simple: key op value
   if (whereTokens.length >= 3) {
     const key = whereTokens[0];
