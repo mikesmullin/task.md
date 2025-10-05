@@ -86,9 +86,12 @@ function parseQuery(query) {
       tokens.push(str);
     } else if (/\s/.test(query[i])) {
       i++;
+    } else if (query[i] === ',') {
+      tokens.push(',');
+      i++;
     } else {
       let word = '';
-      while (i < query.length && !/\s/.test(query[i])) {
+      while (i < query.length && !/\s/.test(query[i]) && query[i] !== ',') {
         word += query[i];
         i++;
       }
