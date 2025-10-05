@@ -8,6 +8,15 @@ import { serializeTasksToLines } from './serializer.js';
 import { replaceTodoSection } from './fileSection.js';
 import { formatAsTable } from './tableFormatter.js';
 
+// Helper function to process escape sequences in parsed values
+function processEscapeSequences(value) {
+  return value
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\\/g, '\\');
+}
+
 // Simple SQL-like query parser
 function parseQuery(query) {
   // Tokenize, handling quotes
@@ -18,11 +27,32 @@ function parseQuery(query) {
       const quote = query[i];
       i++;
       let str = '';
-      while (i < query.length && query[i] !== quote) {
-        str += query[i];
-        i++;
+      while (i < query.length) {
+        if (query[i] === '\\' && i + 1 < query.length) {
+          // Handle backslash escaping
+          const nextChar = query[i + 1];
+          if (nextChar === quote || nextChar === '\\') {
+            str += nextChar; // Add the escaped character
+            i += 2; // Skip both backslash and escaped character
+          } else {
+            str += query[i]; // Just add the backslash as-is
+            i++;
+          }
+        } else if (query[i] === quote) {
+          // Check if next character is also the same quote (SQL-style escape sequence)
+          if (i + 1 < query.length && query[i + 1] === quote) {
+            str += quote; // Add the escaped quote to the string
+            i += 2; // Skip both quote characters
+          } else {
+            // End of string
+            i++; // Skip the closing quote
+            break;
+          }
+        } else {
+          str += query[i];
+          i++;
+        }
       }
-      if (query[i] === quote) i++;
       tokens.push(str);
     } else if (/\s/.test(query[i])) {
       i++;
@@ -163,7 +193,7 @@ function evaluateWhere(task, whereTokens) {
     if (value === 'true') compareValue = true;
     else if (value === 'false') compareValue = false;
     else if (!isNaN(value)) compareValue = Number(value);
-    else compareValue = value.replace(/['"]/g, '');
+    else compareValue = processEscapeSequences(value);
     if (op === '=') {
       return taskValue == compareValue;
     } else if (op === '>') {
@@ -544,7 +574,7 @@ if (cmd === 'query') {
       if (evaluateWhere(task, parsedQuery.where)) {
         // Apply SET assignments
         parsedQuery.set.forEach(assignment => {
-          task.data[assignment.key] = assignment.value.replace(/['"]/g, '');
+          task.data[assignment.key] = processEscapeSequences(assignment.value);
         });
         updatedCount++;
       }
@@ -599,7 +629,7 @@ if (cmd === 'query') {
 
     // Apply SET assignments
     parsedQuery.set.forEach(assignment => {
-      const value = assignment.value.replace(/['"]/g, '');
+      const value = processEscapeSequences(assignment.value);
       if (assignment.key === 'stakeholders' || assignment.key === 'tags') {
         // Convert comma-separated string to array
         newNode.data[assignment.key] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
