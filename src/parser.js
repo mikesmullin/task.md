@@ -140,12 +140,12 @@ function parseBulletLineInline(afterDash, node) {
   // parse prefixes until first key:value or quoted string consumed as title
   for (; i < tokens.length; i++) {
     const tok = tokens[i];
-    if (tok.includes(':')) break; // start of key:value pairs
     if (isQuotedString(tok)) {
       // first quoted string becomes title if no explicit title key present later
       if (!node.data.title) node.data.title = stripQuotes(tok);
       continue;
     }
+    if (tok.includes(':')) break; // start of key:value pairs
     // handle prefixes
     if (tok === 'x' || tok === '[x]') { node.data.completed = true; continue; }
     if (tok === '-' || tok === '[-]') { node.data.skipped = true; continue; }
@@ -165,22 +165,35 @@ function parseBulletLineInline(afterDash, node) {
     // continue scanning until key:value found
   }
 
-  // parse remaining as inline key:value pairs (tokens may include commas)
+  // parse remaining as inline key:value pairs
   const rest = tokens.slice(i);
-  // join with space and parse regex for key: value pairs repeatedly
-  const restStr = rest.join(' ');
-  const kvRegex = /([A-Za-z_][A-Za-z0-9_-]*):\s*(`[^`]*`|"[^"]*"|[^\s,]+)/g;
-  let m;
-  while ((m = kvRegex.exec(restStr)) !== null) {
-    const k = m[1];
-    const vtoken = m[2];
-    const value = parseValueToken(vtoken);
-
-    // Convert comma-separated strings to arrays for specific fields
-    if ((k === 'tags' || k === 'stakeholders') && typeof value === 'string') {
-      node.data[k] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    } else {
-      node.data[k] = value;
+  // Process tokens to extract key:value pairs
+  for (let j = 0; j < rest.length; j++) {
+    const tok = rest[j];
+    if (tok.includes(':')) {
+      const colonPos = tok.indexOf(':');
+      if (colonPos > 0 && colonPos < tok.length - 1) {
+        // key:value in single token
+        const k = tok.slice(0, colonPos);
+        const vtoken = tok.slice(colonPos + 1).trim();
+        const value = parseValueToken(vtoken);
+        if ((k === 'tags' || k === 'stakeholders') && typeof value === 'string') {
+          node.data[k] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        } else {
+          node.data[k] = value;
+        }
+      } else if (colonPos === tok.length - 1 && j + 1 < rest.length) {
+        // key: value in separate tokens
+        const k = tok.slice(0, -1);
+        const vtoken = rest[j + 1];
+        const value = parseValueToken(vtoken);
+        if ((k === 'tags' || k === 'stakeholders') && typeof value === 'string') {
+          node.data[k] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        } else {
+          node.data[k] = value;
+        }
+        j++; // skip the value token
+      }
     }
   }
 
@@ -198,9 +211,22 @@ function tokenizeRespectingQuotes(s) {
     const ch = s[i];
     if (ch === '"' && !inBack) {
       cur += ch;
-      if (inDouble) { // closing
-        out.push(cur.trim()); cur = ''; inDouble = false;
-      } else { inDouble = true; }
+      if (inDouble) {
+        // Check if the quote is escaped by looking backwards
+        let escapeCount = 0;
+        let j = cur.length - 2; // -2 because we just added the quote
+        while (j >= 0 && cur[j] === '\\') {
+          escapeCount++;
+          j--;
+        }
+        if (escapeCount % 2 === 0) {
+          // Even number of backslashes (including 0), so quote is not escaped - closing quote
+          out.push(cur.trim()); cur = ''; inDouble = false;
+        }
+        // Odd number of backslashes, quote is escaped - continue
+      } else {
+        inDouble = true;
+      }
       i++; continue;
     }
     if (ch === '`' && !inDouble) {
@@ -227,14 +253,22 @@ function isQuotedString(tok) {
   return (tok.startsWith('"') && tok.endsWith('"')) || (tok.startsWith('`') && tok.endsWith('`'));
 }
 function stripQuotes(tok) {
-  if ((tok.startsWith('"') && tok.endsWith('"')) || (tok.startsWith('`') && tok.endsWith('`'))) return tok.slice(1, -1);
+  if ((tok.startsWith('"') && tok.endsWith('"')) || (tok.startsWith('`') && tok.endsWith('`'))) {
+    // Remove quotes and handle escape sequences
+    const content = tok.slice(1, -1);
+    return content.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
   return tok;
 }
 
 function parseValueToken(tok) {
   if (!tok) return '';
   tok = tok.trim();
-  if ((tok.startsWith('"') && tok.endsWith('"')) || (tok.startsWith('`') && tok.endsWith('`'))) return tok.slice(1, -1);
+  if ((tok.startsWith('"') && tok.endsWith('"')) || (tok.startsWith('`') && tok.endsWith('`'))) {
+    // Remove quotes and handle escape sequences
+    const content = tok.slice(1, -1);
+    return content.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
   if (tok === 'true') return true;
   if (tok === 'false') return false;
   if (!isNaN(Number(tok))) return Number(tok);

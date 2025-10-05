@@ -79,7 +79,7 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
         if (['completed', 'skipped', 'priority', 'stakeholders', 'stakeholder', 'tags', 'title', 'id'].includes(k)) continue;
         // skip multi-line values and long values (>25 chars)
         if (typeof v === 'string' && (v.includes('\n') || v.length > 25)) continue;
-        const sval = typeof v === 'string' && /\s/.test(v) ? `"${v}"` : String(v);
+        const sval = typeof v === 'string' && /\s/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : String(v);
         parts.push(`${k}: ${sval}`);
       }
       // id should appear at end of line
@@ -122,7 +122,7 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
           }
         } else {
           // simple scalar
-          const sval = typeof v === 'string' && /\s/.test(v) ? `"${v}"` : String(v);
+          const sval = typeof v === 'string' && /\s/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : String(v);
           lines.push(indent + ' '.repeat(options.indentSize) + `${k}: ${sval}`);
         }
       }
