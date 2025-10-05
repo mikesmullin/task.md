@@ -311,6 +311,24 @@ describe('CLI Integration', () => {
       expect(result.stdout).toContain('Deleted');
     });
 
+    test('should execute INSERT', async () => {
+      const tempFile = createTempFile(fs.readFileSync(todoFixture, 'utf8'));
+      tempFiles.push(tempFile);
+
+      const result = await runCli(['query', `INSERT INTO ${tempFile} SET title = 'New Task', priority = 'A'`]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Inserted task');
+
+      // Verify the task was added
+      const selectResult = await runCli(['query', `SELECT title FROM ${tempFile} WHERE title = 'New Task'`]);
+      expect(selectResult.code).toBe(0);
+      const tasks = JSON.parse(selectResult.stdout);
+      expect(tasks.length).toBe(1);
+      expect(tasks[0].title).toBe('New Task');
+      expect(tasks[0].priority).toBe('A');
+    });
+
     test('should handle -q shorthand', async () => {
       const result = await runCli(['-q', `SELECT * FROM ${todoFixture}`]);
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // cli.js
 import fs from 'fs';
-import { parseFileToTree, loadFileLines } from './parser.js';
+import { parseFileToTree, loadFileLines, ensureIdOnNode } from './parser.js';
 import { lintLines } from './linter.js';
 import { collectTasks, multiKeySort } from './utils.js';
 import { serializeTasksToLines } from './serializer.js';
@@ -125,6 +125,19 @@ function parseQuery(query) {
       }
       result.where = whereTokens;
     }
+  } else if (command === 'INSERT') {
+    expect('INTO');
+    result.file = consume();
+    expect('SET');
+    result.set = [];
+    while (peek()) {
+      const key = consume();
+      const eq = consume();
+      if (eq !== '=') throw new Error('Expected = in SET');
+      const value = consume();
+      result.set.push({ key, value });
+      if (peek() === ',') consume();
+    }
   } else {
     throw new Error(`Unknown command: ${command}`);
   }
@@ -230,6 +243,7 @@ COMMANDS
                 SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [LIMIT n] [INTO <output>]
                 UPDATE <file> SET assignments WHERE condition
                 DELETE FROM <file> WHERE condition
+                INSERT INTO <file> SET assignments
               
               Format options:
                 table  - Markdown table format (default)
@@ -243,6 +257,7 @@ COMMANDS
                 todo query "SELECT * FROM tasks.md ORDER BY priority ASC, due DESC INTO sorted.md"
                 todo query "UPDATE tasks.md SET priority = 'A' WHERE id = 1"
                 todo query "DELETE FROM tasks.md WHERE completed = true"
+                todo query "INSERT INTO tasks.md SET title = 'New Task', priority = 'A'"
                 todo query "SELECT * FROM tasks.md" --format/-o table
                 todo query -o json "SELECT * FROM tasks.md WHERE completed = false"
 
@@ -413,18 +428,27 @@ if (cmd === 'query') {
   }
 
   const file = parsedQuery.file;
-  if (!file || !fs.existsSync(file)) {
-    console.error('File required and must exist');
+  if (!file) {
+    console.error('File required');
     process.exit(1);
   }
 
-  // Parse file -> throws on lint errors
   let parsed;
-  try {
-    parsed = parseFileToTree(file, { indentSize: 2, lint: true });
-  } catch (err) {
-    console.error(err.message);
-    process.exit(1);
+  if (fs.existsSync(file)) {
+    // Parse file -> throws on lint errors
+    try {
+      parsed = parseFileToTree(file, { indentSize: 2, lint: true });
+    } catch (err) {
+      console.error(err.message);
+      process.exit(1);
+    }
+  } else {
+    // For INSERT, allow creating new file
+    if (parsedQuery.command !== 'INSERT') {
+      console.error('File required and must exist');
+      process.exit(1);
+    }
+    parsed = { tasks: [], lines: [] };
   }
   const rootTasks = parsed.tasks;
 
@@ -563,6 +587,32 @@ if (cmd === 'query') {
     const replaced = replaceTodoSection(parsed.lines, outTaskLines);
     fs.writeFileSync(file, replaced.join('\n'), 'utf8');
     console.log(`Deleted ${toDelete.size} tasks from ${file}`);
+    process.exit(0);
+  } else if (parsedQuery.command === 'INSERT') {
+    // Create new task
+    const newNode = {
+      data: {},
+      children: [],
+      indent: 0,
+      inline: 'dummy'
+    };
+
+    // Apply SET assignments
+    parsedQuery.set.forEach(assignment => {
+      newNode.data[assignment.key] = assignment.value.replace(/['"]/g, '');
+    });
+
+    // Compute ID
+    ensureIdOnNode(newNode);
+
+    // Add to root tasks
+    rootTasks.push(newNode);
+
+    // Write back to file
+    const outTaskLines = serializeTasksToLines(rootTasks, { indentSize: 2 });
+    const replaced = replaceTodoSection(parsed.lines, outTaskLines);
+    fs.writeFileSync(file, replaced.join('\n'), 'utf8');
+    console.log(`Inserted task ${newNode.id} into ${file}`);
     process.exit(0);
   }
 }

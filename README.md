@@ -61,6 +61,7 @@
 todo query "SELECT [fields] FROM <file> [WHERE condition] [ORDER BY keys] [LIMIT n] [INTO <output>]"
 todo query "UPDATE <file> SET key = 'value' WHERE condition"
 todo query "DELETE FROM <file> WHERE condition"
+todo query "INSERT INTO <file> SET key = 'value'"
 
 # Find all tasks assigned to Alice
 todo query "SELECT title, stakeholders FROM tasks.md WHERE stakeholders CONTAINS 'Alice'"
@@ -114,6 +115,7 @@ todo lint <file>
 * **SELECT**: Query tasks with optional field selection, filtering, sorting, limiting, and output
 * **UPDATE**: Modify task fields based on conditions
 * **DELETE**: Remove tasks matching conditions
+* **INSERT**: Add new tasks with specified fields
 * **WHERE**: Supports equality (`=`, `>`), boolean values, string matching, and `CONTAINS` for arrays/strings
 * **ORDER BY**: Multiple keys with ASC/DESC direction
 * **LIMIT**: Restrict the number of results returned

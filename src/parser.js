@@ -229,7 +229,7 @@ function parseValueToken(tok) {
   return tok;
 }
 
-function ensureIdOnNode(node) {
+export function ensureIdOnNode(node) {
   // If node.data.id exists and non-empty: keep it (do not recompute)
   if (node.data && node.data.id) {
     node.id = String(node.data.id);
