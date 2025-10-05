@@ -17,6 +17,36 @@ function processEscapeSequences(value) {
     .replace(/\\\\/g, '\\');
 }
 
+// Helper function to validate tag names
+function validateTagName(tag) {
+  // Tags must contain only alphanumeric characters, hyphens, and underscores
+  // No spaces, no hash symbols (since # is the prefix), no other special characters
+  const validTagRegex = /^[a-zA-Z0-9_-]+$/;
+  if (!validTagRegex.test(tag)) {
+    return false;
+  }
+  // Additional check: tags cannot be empty
+  if (tag.length === 0) {
+    return false;
+  }
+  return true;
+}
+
+// Helper function to validate stakeholder names
+function validateStakeholderName(stakeholder) {
+  // Stakeholders must contain only alphanumeric characters, hyphens, and underscores
+  // No spaces, no @ symbols (since @ is the prefix), no other special characters
+  const validStakeholderRegex = /^[a-zA-Z0-9_-]+$/;
+  if (!validStakeholderRegex.test(stakeholder)) {
+    return false;
+  }
+  // Additional check: stakeholders cannot be empty
+  if (stakeholder.length === 0) {
+    return false;
+  }
+  return true;
+}
+
 // Simple SQL-like query parser
 function parseQuery(query) {
   // Tokenize, handling quotes
@@ -570,11 +600,41 @@ if (cmd === 'query') {
     let flat = collectTasks(rootTasks);
     let updatedCount = 0;
 
+    // Validate assignments before applying them
+    parsedQuery.set.forEach(assignment => {
+      if (assignment.key === 'tags') {
+        const value = processEscapeSequences(assignment.value);
+        const tags = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        for (const tag of tags) {
+          if (!validateTagName(tag)) {
+            console.error(`Error: Invalid tag name '${tag}'. Tags may only contain letters, numbers, hyphens, and underscores. No spaces or # symbols are allowed.`);
+            process.exit(1);
+          }
+        }
+      }
+      if (assignment.key === 'stakeholders') {
+        const value = processEscapeSequences(assignment.value);
+        const stakeholders = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        for (const stakeholder of stakeholders) {
+          if (!validateStakeholderName(stakeholder)) {
+            console.error(`Error: Invalid stakeholder name '${stakeholder}'. Stakeholders may only contain letters, numbers, hyphens, and underscores. No spaces or @ symbols are allowed.`);
+            process.exit(1);
+          }
+        }
+      }
+    });
+
     flat.forEach(task => {
       if (evaluateWhere(task, parsedQuery.where)) {
         // Apply SET assignments
         parsedQuery.set.forEach(assignment => {
-          task.data[assignment.key] = processEscapeSequences(assignment.value);
+          const value = processEscapeSequences(assignment.value);
+          if (assignment.key === 'stakeholders' || assignment.key === 'tags') {
+            // Convert comma-separated string to array
+            task.data[assignment.key] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+          } else {
+            task.data[assignment.key] = value;
+          }
         });
         updatedCount++;
       }
@@ -627,12 +687,34 @@ if (cmd === 'query') {
       inline: 'dummy'
     };
 
-    // Apply SET assignments
+    // Apply SET assignments with validation
     parsedQuery.set.forEach(assignment => {
       const value = processEscapeSequences(assignment.value);
       if (assignment.key === 'stakeholders' || assignment.key === 'tags') {
         // Convert comma-separated string to array
-        newNode.data[assignment.key] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        const items = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+        // Validate tags
+        if (assignment.key === 'tags') {
+          for (const tag of items) {
+            if (!validateTagName(tag)) {
+              console.error(`Error: Invalid tag name '${tag}'. Tags may only contain letters, numbers, hyphens, and underscores. No spaces or special characters are allowed.`);
+              process.exit(1);
+            }
+          }
+        }
+
+        // Validate stakeholders
+        if (assignment.key === 'stakeholders') {
+          for (const stakeholder of items) {
+            if (!validateStakeholderName(stakeholder)) {
+              console.error(`Error: Invalid stakeholder name '${stakeholder}'. Stakeholders may only contain letters, numbers, hyphens, and underscores. No spaces or @ symbols are allowed.`);
+              process.exit(1);
+            }
+          }
+        }
+
+        newNode.data[assignment.key] = items;
       } else {
         newNode.data[assignment.key] = value;
       }
