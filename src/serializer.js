@@ -52,7 +52,7 @@ export function serializeTasksToLines(rootTasks, options = { indentSize: 2 }) {
       }
       // include other inline key: value pairs excluding known prefix fields
       for (const [k, v] of Object.entries(node.data)) {
-        if (['completed', 'skipped', 'priority', 'stakeholders', 'tags', 'title', 'id'].includes(k)) continue;
+        if (['completed', 'skipped', 'priority', 'stakeholders', 'stakeholder', 'tags', 'title', 'id'].includes(k)) continue;
         // skip multi-line values (none expected here)
         if (typeof v === 'string' && v.includes('\n')) continue;
         const sval = typeof v === 'string' && /\s/.test(v) ? `"${v}"` : String(v);

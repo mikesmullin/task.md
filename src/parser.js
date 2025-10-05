@@ -81,7 +81,13 @@ export function parseFileToTree(filePath, options = { indentSize: 2, lint: true 
             node.data[key] = val;
             continue;
           } else {
-            node.data[key] = parseValueToken(val);
+            const value = parseValueToken(val);
+            // Convert comma-separated strings to arrays for specific fields
+            if ((key === 'tags' || key === 'stakeholders') && typeof value === 'string') {
+              node.data[key] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            } else {
+              node.data[key] = value;
+            }
             i++;
             continue;
           }
@@ -168,7 +174,14 @@ function parseBulletLineInline(afterDash, node) {
   while ((m = kvRegex.exec(restStr)) !== null) {
     const k = m[1];
     const vtoken = m[2];
-    node.data[k] = parseValueToken(vtoken);
+    const value = parseValueToken(vtoken);
+    
+    // Convert comma-separated strings to arrays for specific fields
+    if ((k === 'tags' || k === 'stakeholders') && typeof value === 'string') {
+      node.data[k] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    } else {
+      node.data[k] = value;
+    }
   }
 
   // store original inline representation for better serializing single-line

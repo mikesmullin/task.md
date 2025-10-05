@@ -257,7 +257,7 @@ COMMANDS
                 todo query "SELECT * FROM tasks.md ORDER BY priority ASC, due DESC INTO sorted.md"
                 todo query "UPDATE tasks.md SET priority = 'A' WHERE id = 1"
                 todo query "DELETE FROM tasks.md WHERE completed = true"
-                todo query "INSERT INTO tasks.md SET title = 'New Task', priority = 'A'"
+                todo query "INSERT INTO tasks.md SET title = 'New Task', priority = 'A', stakeholders = 'Rosa, Bob'"
                 todo query "SELECT * FROM tasks.md" --format/-o table
                 todo query -o json "SELECT * FROM tasks.md WHERE completed = false"
 
@@ -599,7 +599,13 @@ if (cmd === 'query') {
 
     // Apply SET assignments
     parsedQuery.set.forEach(assignment => {
-      newNode.data[assignment.key] = assignment.value.replace(/['"]/g, '');
+      const value = assignment.value.replace(/['"]/g, '');
+      if (assignment.key === 'stakeholders' || assignment.key === 'tags') {
+        // Convert comma-separated string to array
+        newNode.data[assignment.key] = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      } else {
+        newNode.data[assignment.key] = value;
+      }
     });
 
     // Compute ID
